@@ -1,6 +1,12 @@
 import 'package:tala_trip_app/features/auth/domain/entities/user_entity.dart';
 
 class UserModel  {
+   final String id;
+   final String username;
+   final String email;
+   final String mobileNumber;
+   final String? profileImageUrl;
+   final DateTime? lastUsernameChangeAt;
   const UserModel({
     required this.id,
     required this.username,
@@ -9,7 +15,7 @@ class UserModel  {
     this.profileImageUrl,
     this.lastUsernameChangeAt,
   });
-}
+
 
 factory UserModel.fromJson(Map<String, dynamic> json) {
   return UserModel(
@@ -53,4 +59,5 @@ Map<String, dynamic> toJson() {
     'profileImageUrl': profileImageUrl,
     'lastUsernameChangeAt': lastUsernameChangeAt?.toIso8601String(),
   };
+}
 }

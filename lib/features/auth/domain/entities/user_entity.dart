@@ -6,7 +6,7 @@ class UserEntity extends Equatable {
   final String mobileNumber;
   final String? profileImageUrl; // new user might not have uploaded a profile picture yet.
   final DateTime? lastUsernameChangeAt; // new user might not have changed their username yet.
-}
+
 
 const UserEntity({
   required this.id,
@@ -25,3 +25,4 @@ List<Object?> get props => [
   profileImageUrl,
   lastUsernameChangeAt,
 ];
+}

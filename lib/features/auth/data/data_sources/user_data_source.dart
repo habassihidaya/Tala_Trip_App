@@ -1,19 +1,19 @@
-import 'package:tala_trip_app/features/auth/domain/entities/user_entity.dart';
+import 'package:tala_trip_app/features/auth/data/models/user_model.dart';
 
-abstract class AuthRepository {
-  Future<UserEntity> signUp({
+abstract class UserDataSource {
+  Future<UserModel> signUp({
     required String username,
     required String email,
     required String password,
     required String mobileNumber,
   });
 
-  Future<UserEntity> signIn({
+  Future<UserModel> signIn({
     required String email,
     required String password,
   });
 
-  Future<UserEntity> getUser();
+  Future<UserModel> getUser();
 
   Future<void> signOut();
 }

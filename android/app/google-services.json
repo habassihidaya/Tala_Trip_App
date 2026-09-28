@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1082908221478",
+    "project_id": "tala-trip-app",
+    "storage_bucket": "tala-trip-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1082908221478:android:60974c673a7ff841fb86e7",
+        "android_client_info": {
+          "package_name": "com.example.tala_trip_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1082908221478-1hj2odto4s5fvlf7sidm4undchadia3u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6eJA3_x3mVVJOiKF1KW8bsaGwhWrWQiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1082908221478-1hj2odto4s5fvlf7sidm4undchadia3u.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1082908221478-h3rt84pn5tnnqc7cpkv6rqsth38qa8r3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.talaTripApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
