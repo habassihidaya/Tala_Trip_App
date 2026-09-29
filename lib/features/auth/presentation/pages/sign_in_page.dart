@@ -4,26 +4,23 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/auth_bloc.dart';
 import '../blocs/auth_event.dart';
 import '../blocs/auth_state.dart';
+import 'sign_up_page.dart';
 
-class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
+class SignInPage extends StatefulWidget {
+  const SignInPage({super.key});
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
+  State<SignInPage> createState() => _SignInPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
+class _SignInPageState extends State<SignInPage> {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController();
   final _email = TextEditingController();
-  final _mobileNumber = TextEditingController();
   final _password = TextEditingController();
 
   @override
   void dispose() {
-    _username.dispose();
     _email.dispose();
-    _mobileNumber.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -32,10 +29,8 @@ class _SignUpPageState extends State<SignUpPage> {
     if (!_formKey.currentState!.validate()) return;
 
     context.read<AuthBloc>().add(
-      SignUpRequested(
-        username: _username.text.trim(),
+      SignInRequested(
         email: _email.text.trim(),
-        mobileNumber: _mobileNumber.text.trim(),
         password: _password.text,
       ),
     );
@@ -43,85 +38,104 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      // After sign-up, return to SignInPage. It displays the
-      // verification instructions for AuthVerificationRequired.
-      listenWhen: (previous, current) =>
-          current is AuthVerificationRequired ||
-          current is AuthAuthenticated,
-      listener: (context, state) {
-        Navigator.of(context).pop();
-      },
-      child: BlocBuilder<AuthBloc, AuthState>(
-        builder: (context, state) {
-          final loading = state is AuthLoading;
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final loading = state is AuthLoading;
 
-          return Scaffold(
-            appBar: AppBar(title: const Text('Create your TALA account')),
-            body: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _username,
-                        decoration:
-                            const InputDecoration(labelText: 'Username'),
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty
-                                ? 'Enter a username'
-                                : null,
+        return Scaffold(
+          appBar: AppBar(title: const Text('TALA Trip')),
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Welcome back',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
                       ),
-                      TextFormField(
-                        controller: _email,
-                        decoration: const InputDecoration(labelText: 'Email'),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) =>
-                            value == null || !value.contains('@')
-                                ? 'Enter a valid email'
-                                : null,
-                      ),
-                      TextFormField(
-                        controller: _mobileNumber,
-                        decoration:
-                            const InputDecoration(labelText: 'Mobile number'),
-                        keyboardType: TextInputType.phone,
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty
-                                ? 'Enter a mobile number'
-                                : null,
-                      ),
-                      TextFormField(
-                        controller: _password,
-                        decoration:
-                            const InputDecoration(labelText: 'Password'),
-                        obscureText: true,
-                        validator: (value) =>
-                            value == null || value.length < 6
-                                ? 'Use at least 6 characters'
-                                : null,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: loading ? null : _submit,
-                        child: Text(
-                          loading ? 'Creating account...' : 'Sign up',
+                    ),
+                    const SizedBox(height: 24),
+                    TextFormField(
+                      controller: _email,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      validator: (value) =>
+                          value == null || !value.trim().contains('@')
+                              ? 'Enter a valid email'
+                              : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _password,
+                      decoration: const InputDecoration(labelText: 'Password'),
+                      obscureText: true,
+                      autofillHints: const [AutofillHints.password],
+                      validator: (value) =>
+                          value == null || value.isEmpty
+                              ? 'Enter your password'
+                              : null,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: loading ? null : _submit,
+                      child: Text(loading ? 'Signing in...' : 'Sign in'),
+                    ),
+                    TextButton(
+                      onPressed: loading
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const SignUpPage(),
+                                ),
+                              ),
+                      child: const Text('Create an account'),
+                    ),
+                    if (state is AuthError) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        state.message,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
                         ),
                       ),
-                      if (state is AuthError) ...[
-                        const SizedBox(height: 16),
-                        Text('Registration failed: ${state.message}'),
-                      ],
                     ],
-                  ),
+                    if (state is AuthVerificationRequired) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        state.message ??
+                            'Please verify ${state.user.email} using the link we sent you.',
+                      ),
+                      TextButton(
+                        onPressed: () => context.read<AuthBloc>().add(
+                              ResendVerificationEmailRequested(),
+                            ),
+                        child: const Text('Resend verification email'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => context.read<AuthBloc>().add(
+                              CheckEmailVerificationRequested(),
+                            ),
+                        child: const Text("I've verified my email"),
+                      ),
+                    ],
+                    if (state is AuthAuthenticated) ...[
+                      const SizedBox(height: 16),
+                      Text('Signed in as ${state.user.username}.'),
+                    ],
+                  ],
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

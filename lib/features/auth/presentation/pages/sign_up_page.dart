@@ -43,7 +43,11 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
+    return BlocConsumer<AuthBloc, AuthState>(
+      listenWhen: (_, current) => current is AuthVerificationRequired,
+      listener: (context, state) {
+        Navigator.of(context).pop();
+      },
       builder: (context, state) {
         final loading = state is AuthLoading;
 
@@ -58,8 +62,9 @@ class _SignUpPageState extends State<SignUpPage> {
                   children: [
                     TextFormField(
                       controller: _username,
-                      decoration:
-                          const InputDecoration(labelText: 'Username'),
+                      decoration: const InputDecoration(
+                        labelText: 'Username',
+                      ),
                       validator: (value) =>
                           value == null || value.trim().isEmpty
                               ? 'Enter a username'
@@ -76,8 +81,9 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     TextFormField(
                       controller: _mobileNumber,
-                      decoration:
-                          const InputDecoration(labelText: 'Mobile number'),
+                      decoration: const InputDecoration(
+                        labelText: 'Mobile number',
+                      ),
                       keyboardType: TextInputType.phone,
                       validator: (value) =>
                           value == null || value.trim().isEmpty
@@ -86,8 +92,9 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     TextFormField(
                       controller: _password,
-                      decoration:
-                          const InputDecoration(labelText: 'Password'),
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                      ),
                       obscureText: true,
                       validator: (value) =>
                           value == null || value.length < 6
@@ -101,17 +108,9 @@ class _SignUpPageState extends State<SignUpPage> {
                         loading ? 'Creating account...' : 'Sign up',
                       ),
                     ),
-                    if (state is AuthAuthenticated) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        'Account created for ${state.user.username}!',
-                      ),
-                    ],
                     if (state is AuthError) ...[
                       const SizedBox(height: 16),
-                      Text(
-                        'Registration failed: ${state.message}',
-                      ),
+                      Text('Registration failed: ${state.message}'),
                     ],
                   ],
                 ),
