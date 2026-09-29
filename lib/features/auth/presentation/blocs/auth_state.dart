@@ -12,3 +12,12 @@ class AuthError extends AuthState{
   AuthError({required this.message});
   final String message;
 }
+class AuthVerificationRequired extends AuthState {
+  AuthVerificationRequired({
+    required this.user,
+    this.message,
+  });
+
+  final UserEntity user;
+  final String? message;
+}

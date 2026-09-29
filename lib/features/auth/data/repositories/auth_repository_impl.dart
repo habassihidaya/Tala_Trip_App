@@ -42,5 +42,15 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+Future<void> sendVerificationEmail() {
+  return _dataSource.sendVerificationEmail();
+}
+
+@override
+Future<bool> isEmailVerified() {
+  return _dataSource.isEmailVerified();
+}
+
+  @override
   Future<void> signOut() => _dataSource.signOut();
 }

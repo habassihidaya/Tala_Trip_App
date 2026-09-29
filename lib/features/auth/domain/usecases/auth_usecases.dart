@@ -36,6 +36,21 @@ class SignIn {
     );
   }
 }
+class SendVerificationEmail {
+  SendVerificationEmail(this._repository);
+
+  final AuthRepository _repository;
+
+  Future<void> call() => _repository.sendVerificationEmail();
+}
+
+class IsEmailVerified {
+  IsEmailVerified(this._repository);
+
+  final AuthRepository _repository;
+
+  Future<bool> call() => _repository.isEmailVerified();
+}
 
 class GetUser {
   GetUser(this._repository);

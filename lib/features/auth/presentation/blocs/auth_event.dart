@@ -11,3 +11,16 @@ class SignUpRequested extends AuthEvent {
     required this.password,
     required this.mobileNumber});
 }
+
+class SignInRequested extends AuthEvent {
+  final String email;
+  final String password;
+
+  SignInRequested({
+    required this.email,
+    required this.password});
+}
+
+class ResendVerificationEmailRequested extends AuthEvent {}
+
+class CheckEmailVerificationRequested extends AuthEvent {}

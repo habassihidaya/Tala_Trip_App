@@ -16,4 +16,7 @@ abstract class UserDataSource {
   Future<UserModel> getUser();
 
   Future<void> signOut();
+
+  Future<void> sendVerificationEmail();
+  Future<bool> isEmailVerified();
 }

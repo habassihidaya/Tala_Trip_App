@@ -71,6 +71,30 @@ final FirebaseFirestore _firestore;
       'id': user.uid,
     });
   }
+  @override
+Future<void> sendVerificationEmail() async {
+  final user = _auth.currentUser;
+
+  if (user == null) {
+    throw StateError('No user is signed in.');
+  }
+
+  if (!user.emailVerified) {
+    await user.sendEmailVerification();
+  }
+}
+
+@override
+Future<bool> isEmailVerified() async {
+  final user = _auth.currentUser;
+
+  if (user == null) {
+    throw StateError('No user is signed in.');
+  }
+
+  await user.reload();
+  return _auth.currentUser?.emailVerified ?? false;
+}
 
   @override
   Future<void> signOut() => _auth.signOut();
