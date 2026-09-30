@@ -1,17 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'core/di/injection_container.dart';
 import 'firebase_options.dart';
-import 'features/auth/data/data_sources/firebase_user_data_source.dart';
-import 'features/auth/data/repositories/auth_repository_impl.dart';
-import 'features/auth/domain/usecases/auth_usecases.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
 import 'features/auth/presentation/blocs/auth_event.dart';
 import 'features/auth/presentation/pages/sign_in_page.dart';
-import 'features/auth/presentation/pages/sign_up_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +14,8 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  setupDependencies();
 
   runApp(const TalaApp());
 }
@@ -28,29 +25,9 @@ class TalaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dataSource = FirebaseUserDataSource(
-      FirebaseAuth.instance,
-      FirebaseFirestore.instance,
-    );
-
-    final repository = AuthRepositoryImpl(dataSource);
-
-    final signUp = SignUp(repository);
-    final signIn = SignIn(repository);
-    final sendVerificationEmail = SendVerificationEmail(repository);
-    final isEmailVerified = IsEmailVerified(repository);
-    final sendPasswordResetEmail = SendPasswordResetEmail(repository);
-    final getUser = GetUser(repository);
-
-    return BlocProvider(
-      create: (_) => AuthBloc(
-        signUp: signUp,
-        signIn: signIn,
-         getUser: getUser,
-        sendVerificationEmail: sendVerificationEmail,
-        isEmailVerified: isEmailVerified,
-        sendPasswordResetEmail: sendPasswordResetEmail,
-      )..add(AuthSessionCheckRequested()),
+    return BlocProvider<AuthBloc>(
+      create: (_) =>
+          getIt<AuthBloc>()..add(AuthSessionCheckRequested()),
       child: const MaterialApp(
         title: 'TALA Trip',
         debugShowCheckedModeBanner: false,
