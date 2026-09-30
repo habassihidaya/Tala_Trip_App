@@ -1,3 +1,5 @@
+import 'package:fpdart/fpdart.dart';
+import 'package:tala_trip_app/core/errors/failures.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_entity.dart';
 import 'package:tala_trip_app/features/auth/domain/repositories/auth_repository.dart';
 
@@ -6,7 +8,7 @@ class SignUp {
 
   final AuthRepository _repository;
 
-  Future<UserEntity> call({
+  Future<Either<Failure, UserEntity>> call({
     required String username,
     required String email,
     required String password,
@@ -26,7 +28,7 @@ class SignIn {
 
   final AuthRepository _repository;
 
-  Future<UserEntity> call({
+  Future<Either<Failure, UserEntity>> call({
     required String email,
     required String password,
   }) {
@@ -41,7 +43,7 @@ class SendVerificationEmail {
 
   final AuthRepository _repository;
 
-  Future<void> call() => _repository.sendVerificationEmail();
+  Future<Either<Failure, Unit>> call() => _repository.sendVerificationEmail();
 }
 
 class IsEmailVerified {
@@ -49,7 +51,7 @@ class IsEmailVerified {
 
   final AuthRepository _repository;
 
-  Future<bool> call() => _repository.isEmailVerified();
+  Future<Either<Failure, bool>> call() => _repository.isEmailVerified();
 }
 
 class GetUser {
@@ -57,7 +59,7 @@ class GetUser {
 
   final AuthRepository _repository;
 
-  Future<UserEntity> call() => _repository.getUser();
+  Future<Either<Failure, UserEntity>> call() => _repository.getUser();
 }
 
 class SignOut {
@@ -65,7 +67,7 @@ class SignOut {
 
   final AuthRepository _repository;
 
-  Future<void> call() => _repository.signOut();
+  Future<Either<Failure, Unit>> call() => _repository.signOut();
 }
 
 class SendPasswordResetEmail {
@@ -73,7 +75,7 @@ class SendPasswordResetEmail {
 
   final AuthRepository _repository;
 
-  Future<void> call(String email) {
+  Future<Either<Failure , Unit>> call(String email) {
     return _repository.sendPasswordResetEmail(email);
   }
 }

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tala_trip_app/core/errors/exceptions.dart';
 import 'package:tala_trip_app/features/auth/data/data_sources/user_data_source.dart';
 import 'package:tala_trip_app/features/auth/data/models/user_model.dart';
 
@@ -55,7 +56,7 @@ final FirebaseFirestore _firestore;
   Future<UserModel> getUser() async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw StateError('No user is signed in.');
+      throw const UnauthenticatedException();
     }
 
     final snapshot =
@@ -63,7 +64,7 @@ final FirebaseFirestore _firestore;
 
     final profile = snapshot.data();
     if (profile == null) {
-      throw StateError('User profile was not found.');
+      throw const UserProfileNotFoundException();
     }
 
     return UserModel.fromJson({
@@ -76,7 +77,7 @@ Future<void> sendVerificationEmail() async {
   final user = _auth.currentUser;
 
   if (user == null) {
-    throw StateError('No user is signed in.');
+    throw const UnauthenticatedException();
   }
 
   if (!user.emailVerified) {
@@ -89,7 +90,7 @@ Future<bool> isEmailVerified() async {
   final user = _auth.currentUser;
 
   if (user == null) {
-    throw StateError('No user is signed in.');
+   throw const UnauthenticatedException();
   }
 
   await user.reload();

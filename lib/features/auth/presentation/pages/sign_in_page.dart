@@ -127,16 +127,7 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       ),
                     ],
-                    if (state is AuthError) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                          state.message,
-                          style: TextStyle(
-                           color: Theme.of(context).colorScheme.error,
-                            ),
-                            ),
-                           ],
-
+                    
                     if (state is AuthPasswordResetEmailSent) ...[
                      const SizedBox(height: 12),
                     const Text(
