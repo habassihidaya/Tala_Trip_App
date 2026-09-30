@@ -51,6 +51,13 @@ Future<bool> isEmailVerified() {
   return _dataSource.isEmailVerified();
 }
 
+@override
+Future<void> sendPasswordResetEmail(String email) {
+  return _dataSource.sendPasswordResetEmail(email);
+}
+
+
+
   @override
   Future<void> signOut() => _dataSource.signOut();
 }

@@ -95,6 +95,10 @@ Future<bool> isEmailVerified() async {
   await user.reload();
   return _auth.currentUser?.emailVerified ?? false;
 }
+@override
+Future<void> sendPasswordResetEmail(String email) {
+  return _auth.sendPasswordResetEmail(email: email);
+}
 
   @override
   Future<void> signOut() => _auth.signOut();

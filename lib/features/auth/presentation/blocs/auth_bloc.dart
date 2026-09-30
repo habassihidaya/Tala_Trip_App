@@ -11,21 +11,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignIn signIn,
     required SendVerificationEmail sendVerificationEmail,
     required IsEmailVerified isEmailVerified,
+    required SendPasswordResetEmail sendPasswordResetEmail,
+    required GetUser getUser,
   })  : _signUp = signUp,
         _signIn = signIn,
         _sendVerificationEmail = sendVerificationEmail,
         _isEmailVerified = isEmailVerified,
+        _sendPasswordResetEmail = sendPasswordResetEmail,
+        _getUser = getUser,
         super(AuthInitial()) {
     on<SignUpRequested>(_onSignUpRequested);
     on<SignInRequested>(_onSignInRequested);
     on<ResendVerificationEmailRequested>(_onResendVerificationEmailRequested);
     on<CheckEmailVerificationRequested>(_onCheckEmailVerificationRequested);
+    on<PasswordResetRequested>(_onPasswordResetRequested);
+    on<AuthSessionCheckRequested>(_onAuthSessionCheckRequested);
   }
 
   final SignUp _signUp;
   final SignIn _signIn;
   final SendVerificationEmail _sendVerificationEmail;
   final IsEmailVerified _isEmailVerified;
+  final SendPasswordResetEmail _sendPasswordResetEmail;
+  final GetUser _getUser;
 
   Future<void> _onSignUpRequested(
     SignUpRequested event,
@@ -131,6 +139,43 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       ));
     }
   }
+
+  Future<void> _onPasswordResetRequested(
+    PasswordResetRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+
+    try {
+      await _sendPasswordResetEmail(event.email);
+      emit(AuthPasswordResetEmailSent());
+    } catch (error) {
+      emit(AuthError(message: 'Could not send password reset email: $error'));
+    }
+  }
+  Future<void> _onAuthSessionCheckRequested(
+  AuthSessionCheckRequested event,
+  Emitter<AuthState> emit,
+) async {
+  emit(AuthLoading());
+
+  try {
+    final user = await _getUser();
+
+    if (await _isEmailVerified()) {
+      emit(AuthAuthenticated(user: user));
+    } else {
+      emit(AuthVerificationRequired(user: user));
+    }
+  } on StateError catch (error) {
+    if (error.message == 'No user is signed in.') {
+      emit(AuthUnauthenticated());
+    } else {
+      emit(AuthError(message: error.toString()));
+    }
+  } catch (error) {
+    emit(AuthError(message: error.toString()));
+  }
 }
-    
+}
 

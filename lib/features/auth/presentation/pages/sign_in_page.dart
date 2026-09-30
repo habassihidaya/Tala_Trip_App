@@ -35,6 +35,20 @@ class _SignInPageState extends State<SignInPage> {
       ),
     );
   }
+  void _requestPasswordReset() {
+  final email = _email.text.trim();
+
+  if (email.isEmpty || !email.contains('@')) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Enter your email address first.'),
+      ),
+    );
+    return;
+  }
+
+  context.read<AuthBloc>().add(PasswordResetRequested(email));
+}
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +96,13 @@ class _SignInPageState extends State<SignInPage> {
                               ? 'Enter your password'
                               : null,
                     ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                        child: TextButton(
+                         onPressed: loading ? null : _requestPasswordReset,
+                         child: const Text('Forgot password?'),
+                          ),
+                          ),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: loading ? null : _submit,
@@ -106,6 +127,23 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       ),
                     ],
+                    if (state is AuthError) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                          state.message,
+                          style: TextStyle(
+                           color: Theme.of(context).colorScheme.error,
+                            ),
+                            ),
+                           ],
+
+                    if (state is AuthPasswordResetEmailSent) ...[
+                     const SizedBox(height: 12),
+                    const Text(
+                       'If an account uses this email, check your inbox for a password reset link.',
+                         ),
+                          ],
+
                     if (state is AuthVerificationRequired) ...[
                       const SizedBox(height: 16),
                       Text(

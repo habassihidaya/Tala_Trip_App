@@ -21,3 +21,5 @@ class AuthVerificationRequired extends AuthState {
   final UserEntity user;
   final String? message;
 }
+class AuthPasswordResetEmailSent extends AuthState {}
+class AuthUnauthenticated extends AuthState {}

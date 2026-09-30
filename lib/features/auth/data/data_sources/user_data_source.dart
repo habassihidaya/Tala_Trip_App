@@ -19,4 +19,6 @@ abstract class UserDataSource {
 
   Future<void> sendVerificationEmail();
   Future<bool> isEmailVerified();
+  Future<void> sendPasswordResetEmail(String email);
+  
 }

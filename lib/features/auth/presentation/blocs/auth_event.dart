@@ -24,3 +24,9 @@ class SignInRequested extends AuthEvent {
 class ResendVerificationEmailRequested extends AuthEvent {}
 
 class CheckEmailVerificationRequested extends AuthEvent {}
+class PasswordResetRequested extends AuthEvent {
+  PasswordResetRequested(this.email);
+
+  final String email;
+}
+class AuthSessionCheckRequested extends AuthEvent {}
