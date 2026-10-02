@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../blocs/auth_bloc.dart';
 import '../blocs/auth_event.dart';
 import '../blocs/auth_state.dart';
-import 'sign_up_page.dart';
+
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -104,20 +105,16 @@ class _SignInPageState extends State<SignInPage> {
                           ),
                           ),
                     const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: loading ? null : _submit,
-                      child: Text(loading ? 'Signing in...' : 'Sign in'),
+                   ElevatedButton(
+                   onPressed: loading ? null : _submit,
+                    child: Text(loading ? 'Signing in...' : 'Sign in'),
                     ),
-                    TextButton(
-                      onPressed: loading
-                          ? null
-                          : () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const SignUpPage(),
-                                ),
-                              ),
-                      child: const Text('Create an account'),
-                    ),
+                     TextButton(
+                     onPressed: loading
+                         ? null
+                         : () => context.push('/sign-up'),
+                         child: const Text('Create an account'),
+                          ),
                     if (state is AuthError) ...[
                       const SizedBox(height: 12),
                       Text(

@@ -79,3 +79,12 @@ class SendPasswordResetEmail {
     return _repository.sendPasswordResetEmail(email);
   }
 }
+class WatchAuthState {
+  final AuthRepository _repository;
+
+  WatchAuthState(this._repository);
+
+  Stream<Either<Failure, String?>> call() {
+    return _repository.authStateChanges();
+  }
+}

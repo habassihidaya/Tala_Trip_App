@@ -3,9 +3,16 @@ import 'package:tala_trip_app/features/auth/domain/entities/user_entity.dart';
 abstract class AuthState{}
 class AuthInitial extends AuthState{}
 class AuthLoading extends AuthState{}
-class AuthAuthenticated extends AuthState{
-  AuthAuthenticated({required this.user});
+class AuthAuthenticated extends AuthState {
+  AuthAuthenticated({
+    required this.user,
+    this.isSigningOut = false,
+    this.signOutError,
+  });
+
   final UserEntity user;
+  final bool isSigningOut;
+  final String? signOutError;
 }
 
 class AuthError extends AuthState{

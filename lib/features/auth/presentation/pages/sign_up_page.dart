@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:go_router/go_router.dart';
 import '../blocs/auth_bloc.dart';
 import '../blocs/auth_event.dart';
 import '../blocs/auth_state.dart';
@@ -46,8 +46,8 @@ class _SignUpPageState extends State<SignUpPage> {
     return BlocConsumer<AuthBloc, AuthState>(
       listenWhen: (_, current) => current is AuthVerificationRequired,
       listener: (context, state) {
-        Navigator.of(context).pop();
-      },
+      context.go('/sign-in');
+         },
       builder: (context, state) {
         final loading = state is AuthLoading;
 

@@ -1,3 +1,6 @@
+import 'package:fpdart/fpdart.dart';
+import 'package:tala_trip_app/core/errors/failures.dart';
+
 abstract class AuthEvent {}
 class SignUpRequested extends AuthEvent {
   final String username;
@@ -30,3 +33,9 @@ class PasswordResetRequested extends AuthEvent {
   final String email;
 }
 class AuthSessionCheckRequested extends AuthEvent {}
+class SignOutRequested extends AuthEvent {}
+class AuthSessionChanged extends AuthEvent {
+  AuthSessionChanged(this.result);
+
+  final Either<Failure, String?> result;
+}

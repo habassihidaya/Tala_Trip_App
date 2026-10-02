@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fpdart/fpdart.dart';
 import 'package:tala_trip_app/core/errors/failure_mapper.dart';
 import 'package:tala_trip_app/core/errors/failures.dart';
@@ -104,4 +106,23 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(mapExceptionToFailure(error));
     }
   }
+  @override
+Stream<Either<Failure, String?>> authStateChanges() {
+  try {
+    return _dataSource.authStateChanges().transform(
+      StreamTransformer<String?, Either<Failure, String?>>.fromHandlers(
+        handleData: (userId, sink) {
+          sink.add(Right(userId));
+        },
+        handleError: (error, stackTrace, sink) {
+          sink.add(Left(mapExceptionToFailure(error)));
+        },
+      ),
+    );
+  } catch (error) {
+    return Stream<Either<Failure, String?>>.value(
+      Left(mapExceptionToFailure(error)),
+    );
+  }
+}
 }

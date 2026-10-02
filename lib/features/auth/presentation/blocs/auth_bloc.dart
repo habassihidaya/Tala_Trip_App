@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fpdart/fpdart.dart';
 import 'package:tala_trip_app/core/errors/failures.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_entity.dart';
 import 'package:tala_trip_app/features/auth/domain/usecases/auth_usecases.dart';
@@ -9,28 +12,32 @@ import 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required SignUp signUp,
-    required SignIn signIn,
+    required SignIn signIn, 
+    required WatchAuthState watchAuthState,
     required SendVerificationEmail sendVerificationEmail,
     required IsEmailVerified isEmailVerified,
     required SendPasswordResetEmail sendPasswordResetEmail,
     required GetUser getUser,
+    required SignOut signOut,
   })  : _signUp = signUp,
         _signIn = signIn,
+        _signOut = signOut,
+        _watchAuthState = watchAuthState,
         _sendVerificationEmail = sendVerificationEmail,
         _isEmailVerified = isEmailVerified,
         _sendPasswordResetEmail = sendPasswordResetEmail,
         _getUser = getUser,
         super(AuthInitial()) {
-    on<SignUpRequested>(_onSignUpRequested);
-    on<SignInRequested>(_onSignInRequested);
-    on<ResendVerificationEmailRequested>(
-      _onResendVerificationEmailRequested,
-    );
-    on<CheckEmailVerificationRequested>(
-      _onCheckEmailVerificationRequested,
-    );
-    on<PasswordResetRequested>(_onPasswordResetRequested);
-    on<AuthSessionCheckRequested>(_onAuthSessionCheckRequested);
+          on<AuthEvent>(
+          _onAuthEvent,
+           transformer: (events, mapper) => events.asyncExpand(mapper),
+          );
+          _authSubscription = _watchAuthState().listen((result) {
+            if (!isClosed) {
+             add(AuthSessionChanged(result));
+  }
+      });
+    
   }
 
   final SignUp _signUp;
@@ -39,7 +46,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final IsEmailVerified _isEmailVerified;
   final SendPasswordResetEmail _sendPasswordResetEmail;
   final GetUser _getUser;
-
+  final SignOut _signOut;
+  final WatchAuthState _watchAuthState;
   Future<void> _onSignUpRequested(
     SignUpRequested event,
     Emitter<AuthState> emit,
@@ -225,5 +233,112 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       },
     );
   }
+  Future<void> _onSignOutRequested(
+  SignOutRequested event,
+  Emitter<AuthState> emit,
+) async {
+  final currentState = state;
+
+  if (currentState is! AuthAuthenticated) return;
+  if (currentState.isSigningOut) return;
+
+  final user = currentState.user;
+
+  emit(AuthAuthenticated(
+    user: user,
+    isSigningOut: true,
+  ));
+
+  final result = await _signOut();
+
+  result.fold<void>(
+    (failure) {
+      emit(AuthAuthenticated(
+        user: user,
+        signOutError: failure.message,
+      ));
+    },
+    (_) {
+      emit(AuthUnauthenticated());
+    },
+  );
+}
+Future<void> _onAuthEvent(
+  AuthEvent event,
+  Emitter<AuthState> emit,
+) async {
+  if (event is SignUpRequested) {
+    await _onSignUpRequested(event, emit);
+  } else if (event is SignInRequested) {
+    await _onSignInRequested(event, emit);
+  } else if (event is ResendVerificationEmailRequested) {
+    await _onResendVerificationEmailRequested(event, emit);
+  } else if (event is CheckEmailVerificationRequested) {
+    await _onCheckEmailVerificationRequested(event, emit);
+  } else if (event is PasswordResetRequested) {
+    await _onPasswordResetRequested(event, emit);
+  } else if (event is AuthSessionCheckRequested) {
+    await _onAuthSessionCheckRequested(event, emit);
+  } else if (event is SignOutRequested) {
+    await _onSignOutRequested(event, emit);
+  }  else if (event is AuthSessionChanged) {
+  await _onAuthSessionChanged(event, emit);
+  }
+
+}
+Future<void> _onAuthSessionChanged(
+  AuthSessionChanged event,
+  Emitter<AuthState> emit,
+) async {
+  await event.result.fold<Future<void>>(
+    (failure) async {
+      emit(AuthError(message: failure.message));
+    },
+    (userId) async {
+      if (userId == null) {
+        if (state is! AuthUnauthenticated) {
+          emit(AuthUnauthenticated());
+        }
+        return;
+      }
+
+      final currentState = state;
+
+      // Our sign-in handler already loaded this account.
+      if (currentState is AuthAuthenticated &&
+          currentState.user.id == userId) {
+        return;
+      }
+
+      // Preserve the verification screen and its message.
+      if (currentState is AuthVerificationRequired &&
+          currentState.user.id == userId) {
+        return;
+      }
+
+      emit(AuthLoading());
+
+      final result = await _getUser();
+
+      await result.fold<Future<void>>(
+        (failure) async {
+          emit(AuthError(message: failure.message));
+        },
+        (user) async {
+          // Do not use another account's profile for this event.
+          if (user.id != userId) return;
+
+          await _emitSessionForUser(user, emit);
+        },
+      );
+    },
+  );
+}
+StreamSubscription<Either<Failure, String?>>? _authSubscription;
+@override
+Future<void> close() async {
+  await _authSubscription?.cancel();
+  await super.close();
+}
 }
 

@@ -64,12 +64,17 @@ void setupDependencies() {
   getIt.registerLazySingleton<SignOut>(
     () => SignOut(getIt<AuthRepository>()),
   );
+  getIt.registerLazySingleton<WatchAuthState>(
+  () => WatchAuthState(getIt<AuthRepository>()),
+  );
 
   // BLoC
   getIt.registerFactory<AuthBloc>(
     () => AuthBloc(
       signUp: getIt<SignUp>(),
       signIn: getIt<SignIn>(),
+       signOut: getIt<SignOut>(),
+       watchAuthState: getIt<WatchAuthState>(),
       getUser: getIt<GetUser>(),
       sendVerificationEmail: getIt<SendVerificationEmail>(),
       isEmailVerified: getIt<IsEmailVerified>(),

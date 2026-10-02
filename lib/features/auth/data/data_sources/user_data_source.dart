@@ -14,6 +14,7 @@ abstract class UserDataSource {
   });
 
   Future<UserModel> getUser();
+  Stream<String?> authStateChanges();
 
   Future<void> signOut();
 

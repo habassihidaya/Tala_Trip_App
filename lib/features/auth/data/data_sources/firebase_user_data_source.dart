@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tala_trip_app/core/errors/exceptions.dart';
 import 'package:tala_trip_app/features/auth/data/data_sources/user_data_source.dart';
 import 'package:tala_trip_app/features/auth/data/models/user_model.dart';
+import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 
 class FirebaseUserDataSource implements UserDataSource {
 
@@ -33,6 +34,7 @@ final FirebaseFirestore _firestore;
       username: username,
       email: email,
       mobileNumber: mobileNumber,
+      role: UserRole.traveler,
     );
 
     await _firestore.collection('users').doc(user.uid).set(model.toJson());
@@ -103,4 +105,10 @@ Future<void> sendPasswordResetEmail(String email) {
 
   @override
   Future<void> signOut() => _auth.signOut();
+  @override
+Stream<String?> authStateChanges() {
+  return _auth.authStateChanges().map(
+    (user) => user?.uid,
+  );
+}
 }
