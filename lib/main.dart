@@ -7,7 +7,6 @@ import 'core/di/injection_container.dart';
 import 'core/routes/app_router.dart';
 import 'core/routes/router_refresh_notifier.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
-import 'features/auth/presentation/blocs/auth_event.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {

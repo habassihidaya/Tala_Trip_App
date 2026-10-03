@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 import '../blocs/auth_bloc.dart';
 import '../blocs/auth_event.dart';
 import '../blocs/auth_state.dart';
 
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
+  final UserRole role;
+
+  const SignUpPage({
+    super.key,
+    required this.role,
+  });
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
@@ -37,6 +43,7 @@ class _SignUpPageState extends State<SignUpPage> {
         email: _email.text.trim(),
         mobileNumber: _mobileNumber.text.trim(),
         password: _password.text,
+        role: widget.role,
       ),
     );
   }
@@ -52,7 +59,13 @@ class _SignUpPageState extends State<SignUpPage> {
         final loading = state is AuthLoading;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Create your TALA account')),
+          appBar: AppBar(
+          title: Text(
+         widget.role == UserRole.hotelOwner
+        ? 'Create your hotel owner account'
+        : 'Create your traveler account',
+           ),
+                ),
           body: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),

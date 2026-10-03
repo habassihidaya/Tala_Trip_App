@@ -4,9 +4,12 @@ import 'package:tala_trip_app/features/admin/presentation/pages/admin_dashboard_
 import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_state.dart';
+import 'package:tala_trip_app/features/auth/presentation/pages/account_type_page.dart';
 import 'package:tala_trip_app/features/auth/presentation/pages/session_check_page.dart';
 import 'package:tala_trip_app/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:tala_trip_app/features/auth/presentation/pages/sign_up_page.dart';
+import 'package:tala_trip_app/features/discovery/presentation/pages/traveler_home_page.dart';
+import 'package:tala_trip_app/features/hotel_owner/presentation/pages/hotel_owner_dashboard_page.dart';
 
 import 'router_refresh_notifier.dart';
 
@@ -29,8 +32,8 @@ GoRouter createAppRouter({
           authState is AuthUnauthenticated ||
           authState is AuthVerificationRequired;
 
-      // At startup, wait for a session result.
-      // Errors stay on the session-check screen with Retry.
+      // Wait for the initial session check.
+      // Startup errors stay on the session-check page with Retry.
       if (!startupResolved) {
         if (!hasSessionResult) {
           return isSessionCheck ? null : '/session-check';
@@ -39,34 +42,61 @@ GoRouter createAppRouter({
         startupResolved = true;
       }
 
-      final isAdmin = authState is AuthAuthenticated &&
-          authState.user.role == UserRole.admin;
+      final isTravelerRoute =
+          location == '/traveler' ||
+          location.startsWith('/traveler/');
 
-      // Leave the startup screen once the session is resolved.
-      if (isSessionCheck) {
-        if (!hasSessionResult) return null;
-
-        return isAdmin ? '/admin' : '/sign-in';
-      }
+      final isOwnerRoute =
+          location == '/owner' ||
+          location.startsWith('/owner/');
 
       final isAdminRoute =
-          location == '/admin' || location.startsWith('/admin/');
+          location == '/admin' ||
+          location.startsWith('/admin/');
 
-      // Protect admin pages.
-      if (isAdminRoute && !isAdmin) {
-        return '/sign-in';
+      final isProtectedRoute =
+          isTravelerRoute || isOwnerRoute || isAdminRoute;
+
+      // Require an authenticated, verified session for private pages.
+      if (authState is! AuthAuthenticated) {
+        if (isSessionCheck) {
+          return hasSessionResult ? '/sign-in' : null;
+        }
+
+        if (isProtectedRoute || location == '/') {
+          return '/sign-in';
+        }
+
+        // Email verification is currently handled on SignInPage.
+        return null;
       }
 
-      // Send authenticated admins to their dashboard.
-      if (isAdmin &&
-          (location == '/sign-in' ||
-              location == '/sign-up' ||
-              location == '/')) {
-        return '/admin';
+      final role = authState.user.role;
+
+      final homePath = switch (role) {
+        UserRole.traveler => '/traveler',
+        UserRole.hotelOwner => '/owner',
+        UserRole.admin => '/admin',
+      };
+
+      final isAuthPage =
+          location == '/sign-in' ||
+          location == '/sign-up' ||
+          location == '/account-type';
+
+      // Open the correct home after sign-in or session restoration.
+      if (isSessionCheck || isAuthPage || location == '/') {
+        return homePath;
       }
 
-      if (location == '/') {
-        return '/sign-in';
+      // Protect each role's private area.
+      final wrongRole =
+          (isTravelerRoute && role != UserRole.traveler) ||
+          (isOwnerRoute && role != UserRole.hotelOwner) ||
+          (isAdminRoute && role != UserRole.admin);
+
+      if (wrongRole) {
+        return homePath;
       }
 
       return null;
@@ -85,8 +115,37 @@ GoRouter createAppRouter({
         builder: (context, state) => const SignInPage(),
       ),
       GoRoute(
+        path: '/account-type',
+        builder: (context, state) => const AccountTypePage(),
+      ),
+      GoRoute(
         path: '/sign-up',
-        builder: (context, state) => const SignUpPage(),
+        redirect: (context, state) {
+          final role = state.uri.queryParameters['role'];
+
+          // Only these two roles are available for registration.
+          if (role != 'traveler' && role != 'hotelOwner') {
+            return '/account-type';
+          }
+
+          return null;
+        },
+        builder: (context, state) {
+          final role =
+              state.uri.queryParameters['role'] == 'hotelOwner'
+                  ? UserRole.hotelOwner
+                  : UserRole.traveler;
+
+          return SignUpPage(role: role);
+        },
+      ),
+      GoRoute(
+        path: '/traveler',
+        builder: (context, state) => const TravelerHomePage(),
+      ),
+      GoRoute(
+        path: '/owner',
+        builder: (context, state) => const HotelOwnerDashboardPage(),
       ),
       GoRoute(
         path: '/admin',

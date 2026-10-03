@@ -8,6 +8,7 @@ import 'package:tala_trip_app/features/auth/data/repositories/auth_repository_im
 import 'package:tala_trip_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tala_trip_app/features/auth/domain/usecases/auth_usecases.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
+import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
 
 final getIt = GetIt.instance;
 

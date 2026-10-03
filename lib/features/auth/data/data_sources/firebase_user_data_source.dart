@@ -12,34 +12,42 @@ class FirebaseUserDataSource implements UserDataSource {
 final FirebaseAuth _auth;
 final FirebaseFirestore _firestore;
 
-  @override
-  Future<UserModel> signUp({
-    required String username,
-    required String email,
-    required String password,
-    required String mobileNumber,
-  }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final user = credential.user;
-    if (user == null) {
-      throw StateError('Account creation did not return a user.');
-    }
-
-    final model = UserModel(
-      id: user.uid,
-      username: username,
-      email: email,
-      mobileNumber: mobileNumber,
-      role: UserRole.traveler,
-    );
-
-    await _firestore.collection('users').doc(user.uid).set(model.toJson());
-    return model;
+  
+@override
+Future<UserModel> signUp({
+  required String username,
+  required String email,
+  required String password,
+  required String mobileNumber,
+  required UserRole role,
+}) async {
+  // Public registration allows only travelers and hotel owners.
+  if (role != UserRole.traveler && role != UserRole.hotelOwner) {
+    throw ArgumentError('Invalid role for registration.');
   }
+
+  final credential = await _auth.createUserWithEmailAndPassword(
+    email: email,
+    password: password,
+  );
+
+  final user = credential.user;
+  if (user == null) {
+    throw StateError('Account creation did not return a user.');
+  }
+
+  final model = UserModel(
+    id: user.uid,
+    username: username,
+    email: email,
+    mobileNumber: mobileNumber,
+    role: role,
+  );
+
+  await _firestore.collection('users').doc(user.uid).set(model.toJson());
+
+  return model;
+}
 
   @override
   Future<UserModel> signIn({

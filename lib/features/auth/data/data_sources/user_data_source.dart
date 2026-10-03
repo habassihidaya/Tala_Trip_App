@@ -1,4 +1,5 @@
 import 'package:tala_trip_app/features/auth/data/models/user_model.dart';
+import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 
 abstract class UserDataSource {
   Future<UserModel> signUp({
@@ -6,6 +7,7 @@ abstract class UserDataSource {
     required String email,
     required String password,
     required String mobileNumber,
+    required UserRole role,
   });
 
   Future<UserModel> signIn({

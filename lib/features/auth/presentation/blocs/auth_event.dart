@@ -1,5 +1,6 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:tala_trip_app/core/errors/failures.dart';
+import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 
 abstract class AuthEvent {}
 class SignUpRequested extends AuthEvent {
@@ -7,12 +8,15 @@ class SignUpRequested extends AuthEvent {
   final String email;
   final String password;
   final String mobileNumber;
+  final UserRole role;
 
   SignUpRequested({
     required this.username,
     required this.email,
     required this.password,
-    required this.mobileNumber});
+    required this.mobileNumber,
+    required this.role,
+  });
 }
 
 class SignInRequested extends AuthEvent {

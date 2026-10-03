@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:tala_trip_app/core/errors/failures.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_entity.dart';
+import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 import 'package:tala_trip_app/features/auth/domain/repositories/auth_repository.dart';
 
 class SignUp {
@@ -13,12 +14,14 @@ class SignUp {
     required String email,
     required String password,
     required String mobileNumber,
+    required UserRole role,
   }) {
     return _repository.signUp(
       username: username,
       email: email,
       password: password,
       mobileNumber: mobileNumber,
+      role: role,
     );
   }
 }
