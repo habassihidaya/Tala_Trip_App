@@ -1,3 +1,9 @@
+import 'package:tala_trip_app/features/rooms/data/data_sources/room_data_source.dart';
+import 'package:tala_trip_app/features/rooms/data/data_sources/firebase_room_data_source.dart';
+import 'package:tala_trip_app/features/rooms/data/repositories/room_repository_impl.dart';
+import 'package:tala_trip_app/features/rooms/domain/repositories/room_repository.dart';
+import 'package:tala_trip_app/features/rooms/domain/usecases/room_usecases.dart';
+import 'package:tala_trip_app/features/rooms/presentation/bloc/room_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
@@ -24,14 +30,11 @@ import 'package:tala_trip_app/features/hotels/data/repositories/hotel_photo_repo
 import 'package:tala_trip_app/features/hotels/domain/repositories/hotel_photo_repository.dart';
 import 'package:tala_trip_app/features/hotels/domain/usecases/upload_hotel_photo.dart';
 
-
 final getIt = GetIt.instance;
 
 void setupDependencies() {
   // Firebase services
-  getIt.registerLazySingleton<FirebaseAuth>(
-    () => FirebaseAuth.instance,
-  );
+  getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
 
   getIt.registerLazySingleton<FirebaseFirestore>(
     () => FirebaseFirestore.instance,
@@ -47,23 +50,15 @@ void setupDependencies() {
 
   // Repository
   getIt.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(
-      getIt<UserDataSource>(),
-    ),
+    () => AuthRepositoryImpl(getIt<UserDataSource>()),
   );
 
   // Use cases
-  getIt.registerLazySingleton<SignUp>(
-    () => SignUp(getIt<AuthRepository>()),
-  );
+  getIt.registerLazySingleton<SignUp>(() => SignUp(getIt<AuthRepository>()));
 
-  getIt.registerLazySingleton<SignIn>(
-    () => SignIn(getIt<AuthRepository>()),
-  );
+  getIt.registerLazySingleton<SignIn>(() => SignIn(getIt<AuthRepository>()));
 
-  getIt.registerLazySingleton<GetUser>(
-    () => GetUser(getIt<AuthRepository>()),
-  );
+  getIt.registerLazySingleton<GetUser>(() => GetUser(getIt<AuthRepository>()));
 
   getIt.registerLazySingleton<SendVerificationEmail>(
     () => SendVerificationEmail(getIt<AuthRepository>()),
@@ -77,11 +72,9 @@ void setupDependencies() {
     () => SendPasswordResetEmail(getIt<AuthRepository>()),
   );
 
-  getIt.registerLazySingleton<SignOut>(
-    () => SignOut(getIt<AuthRepository>()),
-  );
+  getIt.registerLazySingleton<SignOut>(() => SignOut(getIt<AuthRepository>()));
   getIt.registerLazySingleton<WatchAuthState>(
-  () => WatchAuthState(getIt<AuthRepository>()),
+    () => WatchAuthState(getIt<AuthRepository>()),
   );
 
   // BLoC
@@ -89,8 +82,8 @@ void setupDependencies() {
     () => AuthBloc(
       signUp: getIt<SignUp>(),
       signIn: getIt<SignIn>(),
-       signOut: getIt<SignOut>(),
-       watchAuthState: getIt<WatchAuthState>(),
+      signOut: getIt<SignOut>(),
+      watchAuthState: getIt<WatchAuthState>(),
       getUser: getIt<GetUser>(),
       sendVerificationEmail: getIt<SendVerificationEmail>(),
       isEmailVerified: getIt<IsEmailVerified>(),
@@ -98,101 +91,123 @@ void setupDependencies() {
     ),
   );
   // Hotels: data source.
-getIt.registerLazySingleton<HotelDataSource>(
-  () => FirebaseHotelDataSource(
-    getIt<FirebaseAuth>(),
-    getIt<FirebaseFirestore>(),
-  ),
-);
+  getIt.registerLazySingleton<HotelDataSource>(
+    () => FirebaseHotelDataSource(
+      getIt<FirebaseAuth>(),
+      getIt<FirebaseFirestore>(),
+    ),
+  );
 
-// Hotels: repository.
-getIt.registerLazySingleton<HotelRepository>(
-  () => HotelRepositoryImpl(getIt<HotelDataSource>()),
-);
+  // Hotels: repository.
+  getIt.registerLazySingleton<HotelRepository>(
+    () => HotelRepositoryImpl(getIt<HotelDataSource>()),
+  );
 
-// Hotels: use cases.
-getIt.registerLazySingleton<CreateHotelDraft>(
-  () => CreateHotelDraft(getIt<HotelRepository>()),
-);
+  // Hotels: use cases.
+  getIt.registerLazySingleton<CreateHotelDraft>(
+    () => CreateHotelDraft(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<GetMyHotels>(
-  () => GetMyHotels(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<GetMyHotels>(
+    () => GetMyHotels(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<GetHotelById>(
-  () => GetHotelById(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<GetHotelById>(
+    () => GetHotelById(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<UpdateHotelDraft>(
-  () => UpdateHotelDraft(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<UpdateHotelDraft>(
+    () => UpdateHotelDraft(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<DeleteHotelDraft>(
-  () => DeleteHotelDraft(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<DeleteHotelDraft>(
+    () => DeleteHotelDraft(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<SubmitHotelForReview>(
-  () => SubmitHotelForReview(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<SubmitHotelForReview>(
+    () => SubmitHotelForReview(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<GetPendingHotels>(
-  () => GetPendingHotels(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<GetPendingHotels>(
+    () => GetPendingHotels(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<ApproveHotel>(
-  () => ApproveHotel(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<ApproveHotel>(
+    () => ApproveHotel(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<RejectHotel>(
-  () => RejectHotel(getIt<HotelRepository>()),
-);
+  getIt.registerLazySingleton<RejectHotel>(
+    () => RejectHotel(getIt<HotelRepository>()),
+  );
 
-getIt.registerLazySingleton<GetApprovedHotels>(
-  () => GetApprovedHotels(getIt<HotelRepository>()),
-);
- // HTTP client for uploading photos.
-getIt.registerLazySingleton<http.Client>(
-  () => http.Client(),
-  dispose: (client) => client.close(),
-);
+  getIt.registerLazySingleton<GetApprovedHotels>(
+    () => GetApprovedHotels(getIt<HotelRepository>()),
+  );
+  // HTTP client for uploading photos.
+  getIt.registerLazySingleton<http.Client>(
+    () => http.Client(),
+    dispose: (client) => client.close(),
+  );
 
-// Photo data source.
-getIt.registerLazySingleton<HotelPhotoDataSource>(
-  () => CloudinaryHotelPhotoDataSource(
-    client: getIt<http.Client>(),
-    cloudName: 'lbkc13qt',
-    uploadPreset: 'tala_hotels',
-  ),
-);
+  // Photo data source.
+  getIt.registerLazySingleton<HotelPhotoDataSource>(
+    () => CloudinaryHotelPhotoDataSource(
+      client: getIt<http.Client>(),
+      cloudName: 'lbkc13qt',
+      uploadPreset: 'tala_hotels',
+    ),
+  );
 
-// Photo repository.
-getIt.registerLazySingleton<HotelPhotoRepository>(
-  () => HotelPhotoRepositoryImpl(
-    getIt<HotelPhotoDataSource>(),
-  ),
-);
+  // Photo repository.
+  getIt.registerLazySingleton<HotelPhotoRepository>(
+    () => HotelPhotoRepositoryImpl(getIt<HotelPhotoDataSource>()),
+  );
 
-// Photo upload use case.
-getIt.registerLazySingleton<UploadHotelPhoto>(
-  () => UploadHotelPhoto(
-    getIt<HotelPhotoRepository>(),
-  ),
-);
+  // Photo upload use case.
+  getIt.registerLazySingleton<UploadHotelPhoto>(
+    () => UploadHotelPhoto(getIt<HotelPhotoRepository>()),
+  );
 
-// Hotels: a fresh BLoC for each requesting page.
-getIt.registerFactory<HotelBloc>(
-  () => HotelBloc(
-    uploadHotelPhoto: getIt<UploadHotelPhoto>(),
-    createHotelDraft: getIt<CreateHotelDraft>(),
-    getMyHotels: getIt<GetMyHotels>(),
-    getHotelById: getIt<GetHotelById>(),
-    updateHotelDraft: getIt<UpdateHotelDraft>(),
-    deleteHotelDraft: getIt<DeleteHotelDraft>(),
-    submitHotelForReview: getIt<SubmitHotelForReview>(),
-    getPendingHotels: getIt<GetPendingHotels>(),
-    approveHotel: getIt<ApproveHotel>(),
-    rejectHotel: getIt<RejectHotel>(),
-    getApprovedHotels: getIt<GetApprovedHotels>(),
-  ),
-);
+  // Hotels: a fresh BLoC for each requesting page.
+  getIt.registerFactory<HotelBloc>(
+    () => HotelBloc(
+      uploadHotelPhoto: getIt<UploadHotelPhoto>(),
+      createHotelDraft: getIt<CreateHotelDraft>(),
+      getMyHotels: getIt<GetMyHotels>(),
+      getHotelById: getIt<GetHotelById>(),
+      updateHotelDraft: getIt<UpdateHotelDraft>(),
+      deleteHotelDraft: getIt<DeleteHotelDraft>(),
+      submitHotelForReview: getIt<SubmitHotelForReview>(),
+      getPendingHotels: getIt<GetPendingHotels>(),
+      approveHotel: getIt<ApproveHotel>(),
+      rejectHotel: getIt<RejectHotel>(),
+      getApprovedHotels: getIt<GetApprovedHotels>(),
+    ),
+  );
+  getIt.registerLazySingleton<RoomDataSource>(
+    () => FirebaseRoomDataSource(
+      getIt<FirebaseAuth>(),
+      getIt<FirebaseFirestore>(),
+    ),
+  );
+  getIt.registerLazySingleton<RoomRepository>(
+    () => RoomRepositoryImpl(getIt<RoomDataSource>()),
+  );
+  getIt.registerLazySingleton<GetRooms>(
+    () => GetRooms(getIt<RoomRepository>()),
+  );
+  getIt.registerLazySingleton<SaveRoom>(
+    () => SaveRoom(getIt<RoomRepository>()),
+  );
+  getIt.registerLazySingleton<DeleteRoom>(
+    () => DeleteRoom(getIt<RoomRepository>()),
+  );
+  getIt.registerFactoryParam<RoomBloc, String, void>(
+    (hotelId, _) => RoomBloc(
+      hotelId,
+      getIt<GetRooms>(),
+      getIt<SaveRoom>(),
+      getIt<DeleteRoom>(),
+    ),
+  );
 }

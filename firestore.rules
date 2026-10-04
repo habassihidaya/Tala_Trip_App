@@ -1,185 +1,163 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isSelf(userId) {
-      return request.auth != null
-          && request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
+    function isVerified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function hasRole(role) {
+      return isVerified() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    function isHotelOwner() { return hasRole('hotelOwner'); }
+    function isAdmin() { return hasRole('admin'); }
 
+    // Preserve the current account-type registration flow. Roles cannot be
+    // changed by profile updates and admin cannot be selected at signup.
     match /users/{userId} {
       allow read: if isSelf(userId);
-
       allow create: if isSelf(userId)
-          && request.resource.data.id == userId
-          && request.resource.data.role in [
-            'traveler',
-            'hotelOwner'
-          ];
-
+        && request.resource.data.id == userId
+        && request.resource.data.role in ['traveler', 'hotelOwner'];
       allow update: if isSelf(userId)
-          && request.resource.data.diff(resource.data)
-              .affectedKeys()
-              .hasOnly([
-                'username',
-                'email',
-                'mobileNumber',
-                'profileImageUrl',
-                'lastUsernameChangeAt'
-              ]);
-
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'username', 'email', 'mobileNumber', 'profileImageUrl', 'lastUsernameChangeAt'
+        ]);
       allow delete: if false;
-       }
-  
-  // Hotel access requires a verified account.
-function isVerified() {
-  return request.auth != null
-      && request.auth.token.email_verified == true;
+    }
+
+    match /hotels/{hotelId} {
+      function ownsHotel() {
+        return isHotelOwner() && resource.data.ownerId == request.auth.uid;
+      }
+      function nonblank(value) { return value.matches('[\\s\\S]*\\S[\\s\\S]*'); }
+      function validPhone(value) {
+        return value.matches('(0[1-9][0-9]{7,8}|\\+213[1-9][0-9]{7,8})');
+      }
+      function validMap(value) {
+        return value == null || (value is string && value.size() <= 2048
+          && value.matches('https://((www[.])?google[.](com|dz|fr)/maps([/?][^\\s]*)?|maps[.]google[.]com/[^\\s]*|maps[.]app[.]goo[.]gl/[^\\s]+|goo[.]gl/maps/[^\\s]+)'));
+      }
+      function validImage(url) {
+        return url is string && url.size() <= 2048
+          && url.matches('https://res[.]cloudinary[.]com/[^\\s]+');
+      }
+      function validImages(images) {
+        let count = images.size();
+        return images is list && count <= 10
+          && (count < 1 || validImage(images[0])) && (count < 2 || validImage(images[1]))
+          && (count < 3 || validImage(images[2])) && (count < 4 || validImage(images[3]))
+          && (count < 5 || validImage(images[4])) && (count < 6 || validImage(images[5]))
+          && (count < 7 || validImage(images[6])) && (count < 8 || validImage(images[7]))
+          && (count < 9 || validImage(images[8])) && (count < 10 || validImage(images[9]));
+      }
+      function validRoom(room, type) {
+        let capacity = room.capacity;
+        let price = room.priceInCentimes;
+        let count = room.totalRooms;
+        return room is map
+          && room.keys().hasAll(['capacity', 'priceInCentimes', 'totalRooms'])
+          && room.keys().hasOnly(['capacity', 'priceInCentimes', 'totalRooms'])
+          && capacity is int && capacity >= 1 && capacity <= 20
+          && (type != 'single' || capacity == 1)
+          && (type != 'double' || capacity == 2)
+          && price is int && price > 0 && price <= 100000000
+          && count is int && count >= 1 && count <= 10000;
+      }
+      function validRooms(rooms) {
+        return rooms is map && rooms.keys().hasOnly(['single', 'double', 'suite'])
+          && (!('single' in rooms) || validRoom(rooms.single, 'single'))
+          && (!('double' in rooms) || validRoom(rooms.double, 'double'))
+          && (!('suite' in rooms) || validRoom(rooms.suite, 'suite'));
+      }
+      function validHotel(data) {
+        let required = ['id', 'ownerId', 'name', 'description', 'wilaya',
+          'address', 'phoneNumber', 'images', 'mapUrl', 'status', 'createdAt',
+          'updatedAt', 'reviewedAt', 'reviewedBy', 'rejectionReason'];
+        return data.keys().hasAll(required)
+          && data.keys().hasOnly(required.concat(['rooms']))
+          && data.id == hotelId && data.ownerId is string
+          && data.name is string && data.name.size() <= 120 && nonblank(data.name)
+          && data.description is string && data.description.size() <= 5000
+          && data.wilaya in ['', 'Alger', 'Oran', 'Béjaïa', 'Annaba', 'Tipaza']
+          && data.address is string && data.address.size() <= 500
+          && data.phoneNumber is string && (data.phoneNumber == '' || validPhone(data.phoneNumber))
+          && validImages(data.images) && validMap(data.mapUrl)
+          && validRooms(data.get('rooms', {}))
+          && data.status in ['draft', 'pending', 'approved', 'rejected']
+          && data.createdAt is timestamp && data.updatedAt is timestamp
+          && (data.reviewedAt == null || data.reviewedAt is timestamp)
+          && (data.reviewedBy == null || data.reviewedBy is string)
+          && (data.rejectionReason == null ||
+            (data.rejectionReason is string && data.rejectionReason.size() <= 1000));
+      }
+      function noReview(data) {
+        return data.reviewedAt == null && data.reviewedBy == null && data.rejectionReason == null;
+      }
+      function readyForReview(data) {
+        return nonblank(data.description) && data.wilaya != ''
+          && nonblank(data.address) && validPhone(data.phoneNumber)
+          && data.images.size() > 0 && data.get('rooms', {}).size() > 0;
+      }
+      function ownerEditsDraft() {
+        let data = request.resource.data;
+        return resource.data.status in ['draft', 'rejected']
+          && data.status == 'draft' && noReview(data)
+          && data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'description', 'wilaya', 'address', 'phoneNumber', 'images',
+            'mapUrl', 'status', 'updatedAt', 'reviewedAt', 'reviewedBy', 'rejectionReason'
+          ]);
+      }
+      function ownerEditsRooms() {
+        let data = request.resource.data;
+        return (
+          (resource.data.status in ['draft', 'approved']
+            && data.status == resource.data.status
+            && data.diff(resource.data).affectedKeys().hasOnly(['rooms', 'updatedAt']))
+          || (resource.data.status == 'rejected' && data.status == 'draft' && noReview(data)
+            && data.diff(resource.data).affectedKeys().hasOnly([
+              'rooms', 'updatedAt', 'status', 'reviewedAt', 'reviewedBy', 'rejectionReason']))
+        );
+      }
+      function ownerSubmitsDraft() {
+        let data = request.resource.data;
+        return resource.data.status == 'draft' && data.status == 'pending'
+          && readyForReview(data) && noReview(data)
+          && data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'updatedAt', 'reviewedAt', 'reviewedBy', 'rejectionReason']);
+      }
+      function adminReviewsHotel() {
+        let data = request.resource.data;
+        return resource.data.status == 'pending'
+          && data.reviewedBy == request.auth.uid && data.reviewedAt == request.time
+          && ((data.status == 'approved' && readyForReview(data) && data.rejectionReason == null)
+            || (data.status == 'rejected' && data.rejectionReason is string && data.rejectionReason.size() <= 1000 && nonblank(data.rejectionReason)))
+          && data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'updatedAt', 'reviewedAt', 'reviewedBy', 'rejectionReason']);
+      }
+      allow read: if isVerified() && (resource.data.status == 'approved' || ownsHotel() || isAdmin());
+      allow create: if isHotelOwner() && validHotel(request.resource.data)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.status == 'draft'
+        && request.resource.data.updatedAt == request.resource.data.createdAt
+        && noReview(request.resource.data);
+      function ownerUpdate() {
+        let data = request.resource.data;
+        // Evaluate one validation path to stay within the expression budget.
+        return (data.diff(resource.data).affectedKeys().hasAny(['rooms'])
+          || data.diff(resource.data).affectedKeys().hasOnly(['rooms', 'updatedAt']))
+          ? ownerEditsRooms() && validRooms(data.get('rooms', {}))
+          : (data.status == 'pending'
+            ? ownerSubmitsDraft() && validHotel(data)
+            : ownerEditsDraft() && validHotel(data));
+      }
+      allow update: if isVerified() && request.resource.data.updatedAt == request.time
+        && (ownsHotel() ? ownerUpdate() :
+          (isAdmin() && adminReviewsHotel() &&
+            (request.resource.data.status == 'rejected' || validHotel(request.resource.data))));
+      // Embedded room inventory disappears in the same delete; no orphan documents.
+      allow delete: if ownsHotel() && resource.data.status == 'draft';
+    }
+  }
 }
-
-function hasRole(role) {
-  return isVerified()
-      && get(
-        /databases/$(database)/documents/users/$(request.auth.uid)
-      ).data.role == role;
-}
-
-function isHotelOwner() {
-  return hasRole('hotelOwner');
-}
-
-function isAdmin() {
-  return hasRole('admin');
-}
-
-match /hotels/{hotelId} {
-
-  function ownsHotel() {
-    return isHotelOwner()
-        && resource.data.ownerId == request.auth.uid;
-  }
-
-  // Validate the structure expected by HotelModel.
-  function validHotel(data) {
-    let fields = [
-      'id', 'ownerId', 'name', 'description', 'wilaya',
-      'address', 'phoneNumber', 'images', 'mapUrl',
-      'status', 'createdAt', 'updatedAt', 'reviewedAt',
-      'reviewedBy', 'rejectionReason'
-    ];
-     return data.keys().hasAll(fields)
-        && data.keys().hasOnly(fields)
-        && data.id == hotelId
-        && data.ownerId is string
-        && data.name is string
-        && data.description is string
-        && data.wilaya is string
-        && data.address is string
-        && data.phoneNumber is string
-        && data.images is list
-        && (data.mapUrl == null || data.mapUrl is string)
-        && data.status in ['draft', 'pending', 'approved', 'rejected']
-        && data.createdAt is timestamp
-        && data.updatedAt is timestamp
-        && (data.reviewedAt == null || data.reviewedAt is timestamp)
-        && (data.reviewedBy == null || data.reviewedBy is string)
-        && (data.rejectionReason == null
-            || data.rejectionReason is string);
-  }
-
-  function noReview(data) {
-    return data.reviewedAt == null
-        && data.reviewedBy == null
-        && data.rejectionReason == null;
-  }
-
-  function readyForReview(data) {
-    return data.name.matches('.*\\S.*')
-        && data.description.matches('.*\\S.*')
-        && data.wilaya.matches('.*\\S.*')
-        && data.address.matches('.*\\S.*')
-        && data.phoneNumber.matches('.*\\S.*')
-        && data.images.size() > 0;
-  }
-
-  function ownerEditsDraft() {
-    let data = request.resource.data;
-     return ownsHotel()
-        && resource.data.status in ['draft', 'rejected']
-        && data.status == 'draft'
-        && noReview(data)
-        && data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'description', 'wilaya', 'address',
-          'phoneNumber', 'images', 'mapUrl', 'status',
-          'updatedAt', 'reviewedAt', 'reviewedBy',
-          'rejectionReason'
-        ]);
-  }
-
-  function ownerSubmitsDraft() {
-    let data = request.resource.data;
-
-    return ownsHotel()
-        && resource.data.status == 'draft'
-        && data.status == 'pending'
-        && readyForReview(data)
-        && noReview(data)
-        && data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'updatedAt', 'reviewedAt',
-          'reviewedBy', 'rejectionReason'
-        ]);
-  }
-
-  function adminReviewsHotel() {
-    let data = request.resource.data;
-
-    return isAdmin()
-        && resource.data.status == 'pending'
-        && data.reviewedBy == request.auth.uid
-        && data.reviewedAt == request.time
-        && (
-          (data.status == 'approved'
-            && readyForReview(data)
-            && data.rejectionReason == null)
-             ||
-          (data.status == 'rejected'
-            && data.rejectionReason is string
-            && data.rejectionReason.matches('.*\\S.*'))
-        )
-        && data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'updatedAt', 'reviewedAt',
-          'reviewedBy', 'rejectionReason'
-        ]);
-  }
-
-  // Verified users can browse approved hotels.
-  // Owners can also read their own non-public hotels.
-  // Admins can read all hotels.
-  allow read: if isVerified() && (
-    resource.data.status == 'approved'
-    || ownsHotel()
-    || isAdmin()
-  );
-
-  allow create: if isHotelOwner()
-      && validHotel(request.resource.data)
-      && request.resource.data.ownerId == request.auth.uid
-      && request.resource.data.status == 'draft'
-      && request.resource.data.updatedAt
-          == request.resource.data.createdAt
-      && noReview(request.resource.data);
-
-  allow update: if validHotel(request.resource.data)
-      && request.resource.data.updatedAt == request.time
-      && (
-        ownerEditsDraft()
-        || ownerSubmitsDraft()
-        || adminReviewsHotel()
-      );
-
-  allow delete: if ownsHotel()
-      && resource.data.status == 'draft';
-}
-}
-} 

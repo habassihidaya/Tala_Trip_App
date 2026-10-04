@@ -1,3 +1,4 @@
+import 'package:tala_trip_app/features/rooms/presentation/pages/rooms_page.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tala_trip_app/features/admin/presentation/pages/admin_dashboard_page.dart';
@@ -47,19 +48,15 @@ GoRouter createAppRouter({
       }
 
       final isTravelerRoute =
-          location == '/traveler' ||
-          location.startsWith('/traveler/');
+          location == '/traveler' || location.startsWith('/traveler/');
 
       final isOwnerRoute =
-          location == '/owner' ||
-          location.startsWith('/owner/');
+          location == '/owner' || location.startsWith('/owner/');
 
       final isAdminRoute =
-          location == '/admin' ||
-          location.startsWith('/admin/');
+          location == '/admin' || location.startsWith('/admin/');
 
-      final isProtectedRoute =
-          isTravelerRoute || isOwnerRoute || isAdminRoute;
+      final isProtectedRoute = isTravelerRoute || isOwnerRoute || isAdminRoute;
 
       // Require an authenticated, verified session for private pages.
       if (authState is! AuthAuthenticated) {
@@ -107,9 +104,18 @@ GoRouter createAppRouter({
     },
     routes: [
       GoRoute(
-        path: '/',
-        redirect: (context, state) => '/session-check',
+        path: '/traveler/hotels/:hotelId',
+        builder: (context, state) =>
+            HotelDetailsPage(hotelId: state.pathParameters['hotelId']!),
       ),
+      for (final role in ['owner', 'traveler', 'admin'])
+        GoRoute(
+          path: '/$role/hotels/:hotelId/rooms',
+          builder: (context, state) =>
+              RoomsPage(hotelId: state.pathParameters['hotelId']!),
+        ),
+
+      GoRoute(path: '/', redirect: (context, state) => '/session-check'),
       GoRoute(
         path: '/session-check',
         builder: (context, state) => const SessionCheckPage(),
@@ -135,10 +141,9 @@ GoRouter createAppRouter({
           return null;
         },
         builder: (context, state) {
-          final role =
-              state.uri.queryParameters['role'] == 'hotelOwner'
-                  ? UserRole.hotelOwner
-                  : UserRole.traveler;
+          final role = state.uri.queryParameters['role'] == 'hotelOwner'
+              ? UserRole.hotelOwner
+              : UserRole.traveler;
 
           return SignUpPage(role: role);
         },
@@ -156,59 +161,49 @@ GoRouter createAppRouter({
         builder: (context, state) => const AdminDashboardPage(),
       ),
       GoRoute(
-       path: '/owner/hotels',
+        path: '/owner/hotels',
         builder: (context, state) => const MyHotelsPage(),
-        ),
-        GoRoute(
+      ),
+      GoRoute(
         path: '/owner/hotels/add',
         builder: (context, state) => const AddHotelPage(),
-    ),
-    GoRoute(
-      path: '/owner/hotels/:hotelId',
-      builder: (context, state) {
-      return HotelDetailsPage(
-      hotelId: state.pathParameters['hotelId']!,
-    );
-  },
-),
+      ),
       GoRoute(
-       path: '/admin/hotels',
-      builder: (context, state) => const PendingHotelsPage(),
-),
-GoRoute(
-  path: '/admin/hotels/:hotelId',
-  builder: (context, state) {
-    return HotelDetailsPage(
-      hotelId: state.pathParameters['hotelId']!,
-    );
-  },
-),
-   GoRoute(
-  path: '/owner/hotels/:hotelId/edit',
-  redirect: (context, state) {
-    final hotel = state.extra;
+        path: '/owner/hotels/:hotelId',
+        builder: (context, state) {
+          return HotelDetailsPage(hotelId: state.pathParameters['hotelId']!);
+        },
+      ),
+      GoRoute(
+        path: '/admin/hotels',
+        builder: (context, state) => const PendingHotelsPage(),
+      ),
+      GoRoute(
+        path: '/admin/hotels/:hotelId',
+        builder: (context, state) {
+          return HotelDetailsPage(hotelId: state.pathParameters['hotelId']!);
+        },
+      ),
+      GoRoute(
+        path: '/owner/hotels/:hotelId/edit',
+        redirect: (context, state) {
+          final hotel = state.extra;
 
-    // If the form data is missing or stale, return to details.
-    if (hotel is! HotelEntity ||
-        hotel.id != state.pathParameters['hotelId'] ||
-        (hotel.status.name != 'draft' &&
-            hotel.status.name != 'rejected')) {
-      final id = Uri.encodeComponent(
-        state.pathParameters['hotelId']!,
-      );
-      return '/owner/hotels/$id';
-    }
+          // If the form data is missing or stale, return to details.
+          if (hotel is! HotelEntity ||
+              hotel.id != state.pathParameters['hotelId'] ||
+              (hotel.status.name != 'draft' &&
+                  hotel.status.name != 'rejected')) {
+            final id = Uri.encodeComponent(state.pathParameters['hotelId']!);
+            return '/owner/hotels/$id';
+          }
 
-    return null;
-  },
-  builder: (context, state) {
-    return AddHotelPage(
-      hotel: state.extra as HotelEntity,
-    );
-  },
-),
+          return null;
+        },
+        builder: (context, state) {
+          return AddHotelPage(hotel: state.extra as HotelEntity);
+        },
+      ),
     ],
   );
 }
-    
-   

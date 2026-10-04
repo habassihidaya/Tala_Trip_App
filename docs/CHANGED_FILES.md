@@ -1,0 +1,46 @@
+# Complete updated files
+
+Paths are relative to the project root. Each delivered file contains its complete contents.
+
+- `.gitignore`
+- `android/app/src/main/AndroidManifest.xml`
+- `docs/CHANGED_FILES.md`
+- `docs/HOTEL_ROOM_BATCH.md`
+- `firebase.json`
+- `firestore.rules`
+- `ios/Runner/Info.plist`
+- `lib/core/di/injection_container.dart`
+- `lib/core/errors/failure_mapper.dart`
+- `lib/core/routes/app_router.dart`
+- `lib/features/discovery/presentation/pages/traveler_home_page.dart`
+- `lib/features/hotels/data/data_sources/cloudinary_hotel_photo_data_source.dart`
+- `lib/features/hotels/data/data_sources/firebase_hotel_data_sources.dart`
+- `lib/features/hotels/domain/validation/hotel_validation.dart`
+- `lib/features/hotels/presentation/bloc/hotel_bloc.dart`
+- `lib/features/hotels/presentation/pages/add_hotel_page.dart`
+- `lib/features/hotels/presentation/pages/hotel_details_page.dart`
+- `lib/features/rooms/data/data_sources/firebase_room_data_source.dart`
+- `lib/features/rooms/data/data_sources/room_data_source.dart`
+- `lib/features/rooms/data/models/room_model.dart`
+- `lib/features/rooms/data/repositories/room_repository_impl.dart`
+- `lib/features/rooms/domain/entities/room_catalog.dart`
+- `lib/features/rooms/domain/entities/room_entity.dart`
+- `lib/features/rooms/domain/repositories/room_repository.dart`
+- `lib/features/rooms/domain/usecases/room_usecases.dart`
+- `lib/features/rooms/presentation/bloc/room_bloc.dart`
+- `lib/features/rooms/presentation/bloc/room_event.dart`
+- `lib/features/rooms/presentation/bloc/room_state.dart`
+- `lib/features/rooms/presentation/pages/rooms_page.dart`
+- `linux/flutter/generated_plugin_registrant.cc`
+- `linux/flutter/generated_plugins.cmake`
+- `macos/Flutter/GeneratedPluginRegistrant.swift`
+- `pubspec.lock`
+- `pubspec.yaml`
+- `test/cloudinary_photo_test.dart`
+- `test/firestore/package-lock.json`
+- `test/firestore/package.json`
+- `test/firestore/room_rules.test.cjs`
+- `test/room_bloc_test.dart`
+- `test/widget_test.dart`
+- `windows/flutter/generated_plugin_registrant.cc`
+- `windows/flutter/generated_plugins.cmake`

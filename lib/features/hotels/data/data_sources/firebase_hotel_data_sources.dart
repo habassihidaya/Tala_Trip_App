@@ -1,3 +1,6 @@
+import 'package:tala_trip_app/features/hotels/domain/validation/hotel_validation.dart';
+import 'package:tala_trip_app/features/rooms/data/models/room_model.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -28,6 +31,15 @@ class FirebaseHotelDataSource implements HotelDataSource {
       throw const UnauthenticatedException();
     }
 
+    _validateDraft(
+      name,
+      description,
+      wilaya,
+      address,
+      phoneNumber,
+      images,
+      mapUrl,
+    );
     final document = _firestore.collection('hotels').doc();
     final now = DateTime.now();
     final trimmedMapUrl = mapUrl?.trim();
@@ -39,7 +51,7 @@ class FirebaseHotelDataSource implements HotelDataSource {
       description: description.trim(),
       wilaya: wilaya.trim(),
       address: address.trim(),
-      phoneNumber: phoneNumber.trim(),
+      phoneNumber: HotelValidation.normalizePhone(phoneNumber),
       images: List<String>.from(images),
       mapUrl: trimmedMapUrl == null || trimmedMapUrl.isEmpty
           ? null
@@ -49,7 +61,22 @@ class FirebaseHotelDataSource implements HotelDataSource {
       updatedAt: now,
     );
 
-    await document.set(hotel.toJson());
+    // A transaction performs a server read first and fails offline, instead
+    // of leaving the form waiting indefinitely for a queued offline write.
+    await _firestore.runTransaction<void>((transaction) async {
+      final profile = await transaction.get(
+        _firestore.collection('users').doc(user.uid),
+      );
+      if (profile.data()?['role'] != 'hotelOwner') {
+        throw const HotelOperationException(
+          'Only hotel owners can create hotels.',
+        );
+      }
+      transaction.set(document, {
+        ...hotel.toJson(),
+        'rooms': <String, dynamic>{},
+      });
+    });
 
     return hotel;
   }
@@ -65,19 +92,14 @@ class FirebaseHotelDataSource implements HotelDataSource {
     final snapshot = await _firestore
         .collection('hotels')
         .where('ownerId', isEqualTo: user.uid)
-        .get();
+        .get(const GetOptions(source: Source.server));
 
     final hotels = snapshot.docs.map((document) {
-      return HotelModel.fromJson({
-        ...document.data(),
-        'id': document.id,
-      });
+      return HotelModel.fromJson({...document.data(), 'id': document.id});
     }).toList();
 
     // Display the newest hotels first.
-    hotels.sort(
-      (first, second) => second.createdAt.compareTo(first.createdAt),
-    );
+    hotels.sort((first, second) => second.createdAt.compareTo(first.createdAt));
 
     return hotels;
   }
@@ -88,17 +110,17 @@ class FirebaseHotelDataSource implements HotelDataSource {
       throw const UnauthenticatedException();
     }
 
-    final document = await _firestore.collection('hotels').doc(id).get();
+    final document = await _firestore
+        .collection('hotels')
+        .doc(id)
+        .get(const GetOptions(source: Source.server));
     final data = document.data();
 
     if (data == null) {
       throw const HotelNotFoundException();
     }
 
-    return HotelModel.fromJson({
-      ...data,
-      'id': document.id,
-    });
+    return HotelModel.fromJson({...data, 'id': document.id});
   }
 
   @override
@@ -109,6 +131,15 @@ class FirebaseHotelDataSource implements HotelDataSource {
       throw const UnauthenticatedException();
     }
 
+    _validateDraft(
+      hotel.name,
+      hotel.description,
+      hotel.wilaya,
+      hotel.address,
+      hotel.phoneNumber,
+      hotel.images,
+      hotel.mapUrl,
+    );
     final document = _firestore.collection('hotels').doc(hotel.id);
 
     await _firestore.runTransaction<void>((transaction) async {
@@ -126,6 +157,11 @@ class FirebaseHotelDataSource implements HotelDataSource {
         );
       }
 
+      if ((data['updatedAt'] as Timestamp).toDate() != hotel.updatedAt) {
+        throw const HotelOperationException(
+          'This hotel changed since you opened it. Return to details and reload before editing.',
+        );
+      }
       final status = data['status'];
 
       if (status != HotelStatus.draft.name &&
@@ -144,7 +180,7 @@ class FirebaseHotelDataSource implements HotelDataSource {
         'description': hotel.description.trim(),
         'wilaya': hotel.wilaya.trim(),
         'address': hotel.address.trim(),
-        'phoneNumber': hotel.phoneNumber.trim(),
+        'phoneNumber': HotelValidation.normalizePhone(hotel.phoneNumber),
         'images': List<String>.from(hotel.images),
         'mapUrl': trimmedMapUrl == null || trimmedMapUrl.isEmpty
             ? null
@@ -222,45 +258,9 @@ class FirebaseHotelDataSource implements HotelDataSource {
         );
       }
 
-      final hotel = HotelModel.fromJson({
-        ...data,
-        'id': snapshot.id,
-      });
+      final hotel = HotelModel.fromJson({...data, 'id': snapshot.id});
 
-      // Drafts may be incomplete, but submissions need full details.
-      if (hotel.name.trim().isEmpty ||
-          hotel.description.trim().isEmpty ||
-          hotel.wilaya.trim().isEmpty ||
-          hotel.address.trim().isEmpty ||
-          hotel.phoneNumber.trim().isEmpty) {
-        throw const HotelOperationException(
-          'Please complete the hotel name, description, wilaya, '
-          'address and phone number before submitting.',
-        );
-      }
-
-      bool isWebUrl(String value) {
-        final uri = Uri.tryParse(value.trim());
-
-        return uri != null &&
-            (uri.scheme == 'https' || uri.scheme == 'http') &&
-            uri.host.isNotEmpty;
-      }
-
-      if (hotel.images.isEmpty ||
-          hotel.images.any((url) => !isWebUrl(url))) {
-        throw const HotelOperationException(
-          'Please add at least one photo and use valid photo URLs.',
-        );
-      }
-
-      final mapUrl = hotel.mapUrl;
-
-      if (mapUrl != null && !isWebUrl(mapUrl)) {
-        throw const HotelOperationException(
-          'Please provide a valid map URL or leave it empty.',
-        );
-      }
+      _validateSubmission(hotel, data);
 
       transaction.update(document, {
         'status': HotelStatus.pending.name,
@@ -283,7 +283,7 @@ class FirebaseHotelDataSource implements HotelDataSource {
     final profile = await _firestore
         .collection('users')
         .doc(user.uid)
-        .get();
+        .get(const GetOptions(source: Source.server));
 
     if (profile.data()?['role'] != 'admin') {
       throw const HotelOperationException(
@@ -301,19 +301,14 @@ class FirebaseHotelDataSource implements HotelDataSource {
     final snapshot = await _firestore
         .collection('hotels')
         .where('status', isEqualTo: HotelStatus.pending.name)
-        .get();
+        .get(const GetOptions(source: Source.server));
 
     final hotels = snapshot.docs.map((document) {
-      return HotelModel.fromJson({
-        ...document.data(),
-        'id': document.id,
-      });
+      return HotelModel.fromJson({...document.data(), 'id': document.id});
     }).toList();
 
     // Review the oldest submissions first.
-    hotels.sort(
-      (first, second) => first.updatedAt.compareTo(second.updatedAt),
-    );
+    hotels.sort((first, second) => first.updatedAt.compareTo(second.updatedAt));
 
     return hotels;
   }
@@ -337,6 +332,10 @@ class FirebaseHotelDataSource implements HotelDataSource {
         );
       }
 
+      _validateSubmission(
+        HotelModel.fromJson({...data, 'id': snapshot.id}),
+        data,
+      );
       transaction.update(document, {
         'status': HotelStatus.approved.name,
         'reviewedBy': adminId,
@@ -352,9 +351,9 @@ class FirebaseHotelDataSource implements HotelDataSource {
     final adminId = await _requireAdmin();
     final trimmedReason = reason.trim();
 
-    if (trimmedReason.isEmpty) {
+    if (trimmedReason.isEmpty || trimmedReason.length > 1000) {
       throw const HotelOperationException(
-        'Please provide a rejection reason.',
+        'Provide a rejection reason of 1–1,000 characters.',
       );
     }
 
@@ -393,13 +392,10 @@ class FirebaseHotelDataSource implements HotelDataSource {
     final snapshot = await _firestore
         .collection('hotels')
         .where('status', isEqualTo: HotelStatus.approved.name)
-        .get();
+        .get(const GetOptions(source: Source.server));
 
     final hotels = snapshot.docs.map((document) {
-      return HotelModel.fromJson({
-        ...document.data(),
-        'id': document.id,
-      });
+      return HotelModel.fromJson({...document.data(), 'id': document.id});
     }).toList();
 
     // Display hotels alphabetically.
@@ -409,5 +405,64 @@ class FirebaseHotelDataSource implements HotelDataSource {
     );
 
     return hotels;
+  }
+
+  void _validateDraft(
+    String name,
+    String description,
+    String wilaya,
+    String address,
+    String phone,
+    List<String> images,
+    String? mapUrl,
+  ) {
+    final message = HotelValidation.draft(
+      name: name,
+      description: description,
+      wilaya: wilaya,
+      address: address,
+      phoneNumber: phone,
+      photoCount: images.length,
+      mapUrl: mapUrl,
+    );
+    if (message != null) throw HotelOperationException(message);
+    if (images.any((url) => !HotelValidation.validImage(url))) {
+      throw const HotelOperationException(
+        'Choose valid uploaded Cloudinary photos.',
+      );
+    }
+  }
+
+  void _validateSubmission(HotelModel hotel, Map<String, dynamic> data) {
+    _validateDraft(
+      hotel.name,
+      hotel.description,
+      hotel.wilaya,
+      hotel.address,
+      hotel.phoneNumber,
+      hotel.images,
+      hotel.mapUrl,
+    );
+    if (hotel.description.trim().isEmpty ||
+        hotel.wilaya.isEmpty ||
+        hotel.address.trim().isEmpty ||
+        hotel.phoneNumber.trim().isEmpty ||
+        hotel.images.isEmpty) {
+      throw const HotelOperationException(
+        'Complete the description, wilaya, address, phone number and at least one photo.',
+      );
+    }
+    final rooms = Map<String, dynamic>.from(data['rooms'] as Map? ?? {});
+    if (rooms.isEmpty) {
+      throw const HotelOperationException(
+        'Add at least one room type before submitting for review.',
+      );
+    }
+    for (final entry in rooms.entries) {
+      RoomModel.fromJson(
+        entry.key,
+        Map<String, dynamic>.from(entry.value as Map),
+      );
+    }
   }
 }

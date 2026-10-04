@@ -1,9 +1,21 @@
+import 'dart:async';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'exceptions.dart';
 import 'failures.dart';
 
 Failure mapExceptionToFailure(Object error) {
+  if (error is TimeoutException || error is http.ClientException) {
+    return const NetworkFailure(
+      'The request timed out or could not connect. Check your connection and retry.',
+    );
+  }
+  if (error is FormatException || error is TypeError) {
+    return const ServerFailure(
+      'Some saved data has an invalid format. Reload or correct the record before continuing.',
+    );
+  }
   if (error is UnauthenticatedException) {
     return const UnauthenticatedFailure();
   }
@@ -14,13 +26,13 @@ Failure mapExceptionToFailure(Object error) {
     );
   }
   if (error is HotelNotFoundException) {
-  return const ServerFailure(
-    'This hotel could not be found. It may have been deleted.',
-  );
-}
+    return const ServerFailure(
+      'This hotel could not be found. It may have been deleted.',
+    );
+  }
   if (error is HotelOperationException) {
-  return ServerFailure(error.message);
-}
+    return ServerFailure(error.message);
+  }
 
   if (error is FirebaseAuthException) {
     switch (error.code) {
@@ -30,34 +42,28 @@ Failure mapExceptionToFailure(Object error) {
         );
 
       case 'invalid-email':
-        return const AuthFailure(
-          'Please enter a valid email address.',
-        );
+        return const AuthFailure('Please enter a valid email address.');
 
       case 'user-not-found':
-            return const AuthFailure(
-            'No account exists with this email. Please create an account.',
-             );
+        return const AuthFailure(
+          'No account exists with this email. Please create an account.',
+        );
 
       case 'wrong-password':
-            return const AuthFailure(
-          'Incorrect password. Try again or tap Forgot password.',
-               );
-
-        case 'invalid-credential':
-             return const AuthFailure(
-            'We couldn’t sign you in. Check your email and password. '
-             'If you haven’t registered yet, tap Create an account.',
-              );
-      case 'email-already-in-use':
         return const AuthFailure(
-          'An account already uses this email address.',
+          'Incorrect password. Try again or tap Forgot password.',
         );
+
+      case 'invalid-credential':
+        return const AuthFailure(
+          'We couldn’t sign you in. Check your email and password. '
+          'If you haven’t registered yet, tap Create an account.',
+        );
+      case 'email-already-in-use':
+        return const AuthFailure('An account already uses this email address.');
 
       case 'weak-password':
-        return const AuthFailure(
-          'Please choose a stronger password.',
-        );
+        return const AuthFailure('Please choose a stronger password.');
 
       case 'too-many-requests':
         return const AuthFailure(
@@ -70,9 +76,7 @@ Failure mapExceptionToFailure(Object error) {
         );
 
       case 'requires-recent-login':
-        return const AuthFailure(
-          'Please sign in again before continuing.',
-        );
+        return const AuthFailure('Please sign in again before continuing.');
 
       default:
         return const AuthFailure(
@@ -101,7 +105,5 @@ Failure mapExceptionToFailure(Object error) {
     }
   }
 
-  return const UnexpectedFailure(
-    'Something went wrong. Please try again.',
-  );
+  return const UnexpectedFailure('Something went wrong. Please try again.');
 }

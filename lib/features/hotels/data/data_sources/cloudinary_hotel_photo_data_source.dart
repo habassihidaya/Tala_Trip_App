@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:tala_trip_app/features/hotels/domain/validation/hotel_validation.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -13,14 +15,27 @@ class CloudinaryHotelPhotoDataSource implements HotelPhotoDataSource {
   final String _cloudName;
   final String _uploadPreset;
 
- CloudinaryHotelPhotoDataSource({
-  required this._client,
-  required this._cloudName,
-  required this._uploadPreset,
-});
+  CloudinaryHotelPhotoDataSource({
+    required this._client,
+    required this._cloudName,
+    required this._uploadPreset,
+  });
 
   @override
   Future<String> uploadPhoto(String filePath) async {
+    final file = File(filePath);
+    try {
+      final length = await file.length();
+      if (length == 0 || length > 10 * 1024 * 1024) {
+        throw const HotelOperationException(
+          'Choose a non-empty photo smaller than 10 MB.',
+        );
+      }
+    } on FileSystemException {
+      throw const HotelOperationException(
+        'This photo is no longer available. Remove it and select it again.',
+      );
+    }
     final uri = Uri.https(
       'api.cloudinary.com',
       '/v1_1/$_cloudName/image/upload',
@@ -31,9 +46,7 @@ class CloudinaryHotelPhotoDataSource implements HotelPhotoDataSource {
 
     request.fields['upload_preset'] = _uploadPreset;
 
-    request.files.add(
-      await http.MultipartFile.fromPath('file', filePath),
-    );
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
 
     final response = await (() async {
       final streamedResponse = await _client.send(request);
@@ -66,7 +79,7 @@ class CloudinaryHotelPhotoDataSource implements HotelPhotoDataSource {
 
     final url = decoded['secure_url'];
 
-    if (url is! String || url.isEmpty) {
+    if (url is! String || !HotelValidation.validImage(url)) {
       throw const HotelOperationException(
         'The photo was uploaded, but its URL was missing.',
       );

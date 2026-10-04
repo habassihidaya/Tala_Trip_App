@@ -1,3 +1,4 @@
+import 'package:tala_trip_app/features/hotels/domain/validation/hotel_validation.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,10 +15,7 @@ import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_state.dart
 class AddHotelPage extends StatefulWidget {
   final HotelEntity? hotel;
 
-  const AddHotelPage({
-    super.key,
-    this.hotel,
-  });
+  const AddHotelPage({super.key, this.hotel});
 
   @override
   State<AddHotelPage> createState() => _AddHotelPageState();
@@ -36,13 +34,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
   final List<XFile> _selectedImages = [];
   final List<String> _existingImages = [];
 
-  final List<String> _wilayas = [
-    'Alger',
-    'Oran',
-    'Béjaïa',
-    'Annaba',
-    'Tipaza',
-  ];
+  final List<String> _wilayas = HotelValidation.wilayas;
 
   String? _selectedWilaya;
   bool _isPickingImages = false;
@@ -65,13 +57,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
 
     _existingImages.addAll(hotel.images);
 
-    if (hotel.wilaya.isNotEmpty) {
-      // Preserve any existing value that differs from our current list.
-      if (!_wilayas.contains(hotel.wilaya)) {
-        _wilayas.add(hotel.wilaya);
-      }
-      _selectedWilaya = hotel.wilaya;
-    }
+    if (_wilayas.contains(hotel.wilaya)) _selectedWilaya = hotel.wilaya;
   }
 
   @override
@@ -98,13 +84,21 @@ class _AddHotelPageState extends State<AddHotelPage> {
 
       if (!mounted) return;
 
+      if (_existingImages.length + _selectedImages.length + photos.length >
+          HotelValidation.maxPhotos) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Choose at most 10 photos.')),
+        );
+      }
       setState(() {
         for (final photo in photos) {
           final alreadySelected = _selectedImages.any(
             (selected) => selected.path == photo.path,
           );
 
-          if (!alreadySelected) {
+          if (!alreadySelected &&
+              _existingImages.length + _selectedImages.length <
+                  HotelValidation.maxPhotos) {
             _selectedImages.add(photo);
           }
         }
@@ -185,12 +179,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
       rejectionReason: original.rejectionReason,
     );
 
-    bloc.add(
-      UpdateHotelDraftEvent(
-        hotel: editedHotel,
-        photoPaths: photoPaths,
-      ),
-    );
+    bloc.add(UpdateHotelDraftEvent(hotel: editedHotel, photoPaths: photoPaths));
   }
 
   Widget _photoPreview({
@@ -203,10 +192,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: image,
-          ),
+          ClipRRect(borderRadius: BorderRadius.circular(12), child: image),
           Positioned(
             top: 0,
             right: 0,
@@ -245,12 +231,13 @@ class _AddHotelPageState extends State<AddHotelPage> {
           if (state is HotelErrorState) {
             setState(() => _saveRequested = false);
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
 
-          final saved = state is HotelDraftCreatedState ||
+          final saved =
+              state is HotelDraftCreatedState ||
               (state is HotelActionSuccessState &&
                   state.action == HotelAction.updated);
 
@@ -264,7 +251,8 @@ class _AddHotelPageState extends State<AddHotelPage> {
         },
         builder: (context, state) {
           final saving = state is HotelLoadingState;
-          final saved = state is HotelDraftCreatedState ||
+          final saved =
+              state is HotelDraftCreatedState ||
               (state is HotelActionSuccessState &&
                   state.action == HotelAction.updated);
           final busy = saving || saved || _saveRequested;
@@ -300,8 +288,10 @@ class _AddHotelPageState extends State<AddHotelPage> {
                           ),
                           textCapitalization: TextCapitalization.words,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Enter the hotel name.';
+                            if (value == null ||
+                                value.trim().isEmpty ||
+                                value.trim().length > 120) {
+                              return 'Enter a hotel name of 1–120 characters.';
                             }
                             return null;
                           },
@@ -314,6 +304,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
                             hintText: 'Tell travelers about your hotel.',
                             border: OutlineInputBorder(),
                           ),
+                          maxLength: 5000,
                           minLines: 3,
                           maxLines: 5,
                           textCapitalization: TextCapitalization.sentences,
@@ -353,6 +344,12 @@ class _AddHotelPageState extends State<AddHotelPage> {
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.phone,
+                          validator: (value) =>
+                              value == null ||
+                                  value.trim().isEmpty ||
+                                  HotelValidation.validPhone(value)
+                              ? null
+                              : 'Enter a valid Algerian phone number.',
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
@@ -367,13 +364,8 @@ class _AddHotelPageState extends State<AddHotelPage> {
                             final text = value?.trim() ?? '';
                             if (text.isEmpty) return null;
 
-                            final uri = Uri.tryParse(text);
-
-                            if (uri == null ||
-                                (uri.scheme != 'https' &&
-                                    uri.scheme != 'http') ||
-                                uri.host.isEmpty) {
-                              return 'Enter a valid web link.';
+                            if (!HotelValidation.validMap(text)) {
+                              return 'Enter an HTTPS Google Maps link.';
                             }
                             return null;
                           },
@@ -381,9 +373,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
                         const SizedBox(height: 24),
                         OutlinedButton.icon(
                           onPressed: _isPickingImages ? null : _pickImages,
-                          icon: const Icon(
-                            Icons.add_photo_alternate_outlined,
-                          ),
+                          icon: const Icon(Icons.add_photo_alternate_outlined),
                           label: Text(
                             _isPickingImages
                                 ? 'Opening photos...'
@@ -391,8 +381,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        if (_existingImages.isEmpty &&
-                            _selectedImages.isEmpty)
+                        if (_existingImages.isEmpty && _selectedImages.isEmpty)
                           const Text('No photos selected yet.'),
                         Wrap(
                           spacing: 12,
@@ -443,9 +432,7 @@ class _AddHotelPageState extends State<AddHotelPage> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(
-                          _isEditing ? 'Save changes' : 'Save draft',
-                        ),
+                      : Text(_isEditing ? 'Save changes' : 'Save draft'),
                 ),
               ),
             ),

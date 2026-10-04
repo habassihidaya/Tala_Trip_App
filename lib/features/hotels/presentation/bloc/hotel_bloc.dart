@@ -1,3 +1,4 @@
+import 'package:tala_trip_app/features/hotels/domain/validation/hotel_validation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fpdart/fpdart.dart';
 
@@ -10,6 +11,7 @@ import 'hotel_event.dart';
 import 'hotel_state.dart';
 
 class HotelBloc extends Bloc<HotelEvent, HotelState> {
+  final Map<String, String> _uploadedPhotos = {};
   final CreateHotelDraft _createHotelDraft;
   final GetMyHotels _getMyHotels;
   final GetHotelById _getHotelById;
@@ -34,7 +36,7 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
     required this._rejectHotel,
     required this._getApprovedHotels,
     required this._uploadHotelPhoto,
-  })  : super(HotelInitialState()) {
+  }) : super(HotelInitialState()) {
     // Process events one at a time.
     on<HotelEvent>(
       _onEvent,
@@ -42,57 +44,67 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
     );
   }
 
-  Future<void> _onEvent(
-    HotelEvent event,
-    Emitter<HotelState> emit,
-  ) async {
+  Future<void> _onEvent(HotelEvent event, Emitter<HotelState> emit) async {
     emit(HotelLoadingState());
 
     if (event is CreateHotelDraftEvent) {
-  final imageUrls = <String>[];
+      final validation = HotelValidation.draft(
+        name: event.name,
+        description: event.description,
+        wilaya: event.wilaya,
+        address: event.address,
+        phoneNumber: event.phoneNumber,
+        photoCount: event.photoPaths.length,
+        mapUrl: event.mapUrl,
+      );
+      if (validation != null) {
+        emit(HotelErrorState(message: validation));
+        return;
+      }
+      final imageUrls = <String>[];
 
-  for (final path in event.photoPaths) {
-    final uploadResult = await _uploadHotelPhoto(path);
+      for (final path in event.photoPaths) {
+        final uploadResult = await _uploadOnce(path);
 
-    Failure? uploadFailure;
+        Failure? uploadFailure;
 
-    uploadResult.fold<void>(
-      (failure) {
-        uploadFailure = failure;
-      },
-      (url) {
-        imageUrls.add(url);
-      },
-    );
+        uploadResult.fold<void>(
+          (failure) {
+            uploadFailure = failure;
+          },
+          (url) {
+            imageUrls.add(url);
+          },
+        );
 
-    final failure = uploadFailure;
+        final failure = uploadFailure;
 
-    if (failure != null) {
-      emit(HotelErrorState(message: failure.message));
+        if (failure != null) {
+          emit(HotelErrorState(message: failure.message));
+          return;
+        }
+      }
+
+      final result = await _createHotelDraft(
+        name: event.name,
+        description: event.description,
+        wilaya: event.wilaya,
+        address: event.address,
+        phoneNumber: event.phoneNumber,
+        images: imageUrls,
+        mapUrl: event.mapUrl,
+      );
+
+      result.fold<void>(
+        (failure) {
+          emit(HotelErrorState(message: failure.message));
+        },
+        (hotel) {
+          emit(HotelDraftCreatedState(hotel: hotel));
+        },
+      );
+
       return;
-    }
-  }
-
-  final result = await _createHotelDraft(
-    name: event.name,
-    description: event.description,
-    wilaya: event.wilaya,
-    address: event.address,
-    phoneNumber: event.phoneNumber,
-    images: imageUrls,
-    mapUrl: event.mapUrl,
-  );
-
-  result.fold<void>(
-    (failure) {
-      emit(HotelErrorState(message: failure.message));
-    },
-    (hotel) {
-      emit(HotelDraftCreatedState(hotel: hotel));
-    },
-  );
-
-  return;
     }
 
     if (event is GetMyHotelsEvent) {
@@ -111,75 +123,87 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
       return;
     }
 
-       if (event is UpdateHotelDraftEvent) {
-  final hotel = event.hotel;
+    if (event is UpdateHotelDraftEvent) {
+      final hotel = event.hotel;
 
-  // Only drafts and rejected hotels can be edited.
-  if (hotel.status.name != 'draft' &&
-      hotel.status.name != 'rejected') {
-    emit(
-      HotelErrorState(
-        message: 'Only draft or rejected hotels can be edited.',
-      ),
-    );
-    return;
-  }
+      // Only drafts and rejected hotels can be edited.
+      if (hotel.status.name != 'draft' && hotel.status.name != 'rejected') {
+        emit(
+          HotelErrorState(
+            message: 'Only draft or rejected hotels can be edited.',
+          ),
+        );
+        return;
+      }
 
-  // Keep the existing remote photos selected in the form.
-  final imageUrls = <String>[...hotel.images];
+      final validation = HotelValidation.draft(
+        name: hotel.name,
+        description: hotel.description,
+        wilaya: hotel.wilaya,
+        address: hotel.address,
+        phoneNumber: hotel.phoneNumber,
+        photoCount: hotel.images.length + event.photoPaths.length,
+        mapUrl: hotel.mapUrl,
+      );
+      if (validation != null) {
+        emit(HotelErrorState(message: validation));
+        return;
+      }
+      // Keep the existing remote photos selected in the form.
+      final imageUrls = <String>[...hotel.images];
 
-  // Upload any newly selected phone photos.
-  for (final path in event.photoPaths) {
-    final uploadResult = await _uploadHotelPhoto(path);
+      // Upload any newly selected phone photos.
+      for (final path in event.photoPaths) {
+        final uploadResult = await _uploadOnce(path);
 
-    Failure? uploadFailure;
+        Failure? uploadFailure;
 
-    uploadResult.fold<void>(
-      (failure) {
-        uploadFailure = failure;
-      },
-      (url) {
-        imageUrls.add(url);
-      },
-    );
+        uploadResult.fold<void>(
+          (failure) {
+            uploadFailure = failure;
+          },
+          (url) {
+            imageUrls.add(url);
+          },
+        );
 
-    final failure = uploadFailure;
+        final failure = uploadFailure;
 
-    if (failure != null) {
-      emit(HotelErrorState(message: failure.message));
+        if (failure != null) {
+          emit(HotelErrorState(message: failure.message));
+          return;
+        }
+      }
+
+      // Combine the edited information with the final photo URLs.
+      final updatedHotel = HotelEntity(
+        id: hotel.id,
+        ownerId: hotel.ownerId,
+        name: hotel.name,
+        description: hotel.description,
+        wilaya: hotel.wilaya,
+        address: hotel.address,
+        phoneNumber: hotel.phoneNumber,
+        images: List.unmodifiable(imageUrls),
+        mapUrl: hotel.mapUrl,
+        status: hotel.status,
+        createdAt: hotel.createdAt,
+        updatedAt: hotel.updatedAt,
+        reviewedAt: hotel.reviewedAt,
+        reviewedBy: hotel.reviewedBy,
+        rejectionReason: hotel.rejectionReason,
+      );
+
+      final result = await _updateHotelDraft(updatedHotel);
+
+      _emitActionResult(
+        result,
+        emit,
+        hotelId: hotel.id,
+        action: HotelAction.updated,
+      );
       return;
     }
-  }
-
-  // Combine the edited information with the final photo URLs.
-  final updatedHotel = HotelEntity(
-    id: hotel.id,
-    ownerId: hotel.ownerId,
-    name: hotel.name,
-    description: hotel.description,
-    wilaya: hotel.wilaya,
-    address: hotel.address,
-    phoneNumber: hotel.phoneNumber,
-    images: List.unmodifiable(imageUrls),
-    mapUrl: hotel.mapUrl,
-    status: hotel.status,
-    createdAt: hotel.createdAt,
-    updatedAt: hotel.updatedAt,
-    reviewedAt: hotel.reviewedAt,
-    reviewedBy: hotel.reviewedBy,
-    rejectionReason: hotel.rejectionReason,
-  );
-
-  final result = await _updateHotelDraft(updatedHotel);
-
-  _emitActionResult(
-    result,
-    emit,
-    hotelId: hotel.id,
-    action: HotelAction.updated,
-  );
-  return;
-}
 
     if (event is DeleteHotelDraftEvent) {
       final result = await _deleteHotelDraft(event.id);
@@ -227,9 +251,7 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
       final reason = event.reason.trim();
 
       if (reason.isEmpty) {
-        emit(
-          HotelErrorState(message: 'Please provide a rejection reason.'),
-        );
+        emit(HotelErrorState(message: 'Please provide a rejection reason.'));
         return;
       }
 
@@ -251,6 +273,16 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
     }
 
     emit(HotelErrorState(message: 'Unsupported hotel action.'));
+  }
+
+  Future<Either<Failure, String>> _uploadOnce(String path) async {
+    final cached = _uploadedPhotos[path];
+    if (cached != null) return Right(cached);
+    final result = await _uploadHotelPhoto(path);
+    result.fold<void>((_) {}, (url) {
+      _uploadedPhotos[path] = url;
+    });
+    return result;
   }
 
   // Shared handling for the three hotel-list operations.
@@ -279,12 +311,7 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
   }) {
     result.fold<void>(
       (failure) => emit(HotelErrorState(message: failure.message)),
-      (_) => emit(
-        HotelActionSuccessState(
-          hotelId: hotelId,
-          action: action,
-        ),
-      ),
+      (_) => emit(HotelActionSuccessState(hotelId: hotelId, action: action)),
     );
   }
 }

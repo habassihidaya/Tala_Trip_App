@@ -1,1 +1,33 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"tala-trip-app","appId":"1:1082908221478:android:60974c673a7ff841fb86e7","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"tala-trip-app","configurations":{"android":"1:1082908221478:android:60974c673a7ff841fb86e7","ios":"1:1082908221478:ios:b8bd4ed46e5417bdfb86e7"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "tala-trip-app",
+          "appId": "1:1082908221478:android:60974c673a7ff841fb86e7",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "tala-trip-app",
+          "configurations": {
+            "android": "1:1082908221478:android:60974c673a7ff841fb86e7",
+            "ios": "1:1082908221478:ios:b8bd4ed46e5417bdfb86e7"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}
