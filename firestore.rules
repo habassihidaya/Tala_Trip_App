@@ -31,7 +31,7 @@ service cloud.firestore {
 
       allow delete: if false;
        }
-  }
+  
   // Hotel access requires a verified account.
 function isVerified() {
   return request.auth != null
@@ -182,3 +182,4 @@ match /hotels/{hotelId} {
       && resource.data.status == 'draft';
 }
 }
+} 

@@ -1,58 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:tala_trip_app/core/di/injection_container.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_event.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_state.dart';
 import 'package:tala_trip_app/features/hotels/presentation/widgets/hotel_card.dart';
-import 'package:go_router/go_router.dart';
 
-class MyHotelsPage extends StatelessWidget {
-  const MyHotelsPage({super.key});
+class PendingHotelsPage extends StatelessWidget {
+  const PendingHotelsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<HotelBloc>(
-      create: (_) => getIt<HotelBloc>()..add(GetMyHotelsEvent()),
-      child: const _MyHotelsView(),
+      create: (_) => getIt<HotelBloc>()..add(GetPendingHotelsEvent()),
+      child: const _PendingHotelsView(),
     );
   }
 }
 
-class _MyHotelsView extends StatelessWidget {
-  const _MyHotelsView();
+class _PendingHotelsView extends StatelessWidget {
+  const _PendingHotelsView();
 
   void _reload(BuildContext context) {
-    context.read<HotelBloc>().add(GetMyHotelsEvent());
+    context.read<HotelBloc>().add(GetPendingHotelsEvent());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-     onPressed: () async {
-    final created = await context.push<bool>(
-    '/owner/hotels/add',
-  );
-
-  if (!context.mounted) return;
-
-  if (created == true) {
-    _reload(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hotel draft saved.'),
-      ),
-    );
-  }
-},
-    icon: const Icon(Icons.add),
-    label: const Text('Add hotel'),
-  ),
       appBar: AppBar(
-        title: const Text('My hotels'),
+        title: const Text('Pending hotels'),
         actions: [
           BlocBuilder<HotelBloc, HotelState>(
             builder: (context, state) {
@@ -103,7 +82,7 @@ class _MyHotelsView extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'You haven’t added a hotel yet.',
+                  'No hotels are waiting for review.',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -118,27 +97,19 @@ class _MyHotelsView extends StatelessWidget {
                 final hotel = state.hotels[index];
 
                 return HotelCard(
-               name: hotel.name,
-               wilaya: hotel.wilaya,
-              status: hotel.status.name,
-                 onTap: () async {
-  final submitted = await context.push<bool>(
-    '/owner/hotels/${Uri.encodeComponent(hotel.id)}',
-  );
+                  name: hotel.name,
+                  wilaya: hotel.wilaya,
+                  status: hotel.status.name,
+                  onTap: () async {
+                    await context.push(
+                      '/admin/hotels/${Uri.encodeComponent(hotel.id)}',
+                    );
 
-  if (!context.mounted) return;
+                    if (!context.mounted) return;
 
-  _reload(context);
-
-  if (submitted == true) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hotel submitted for review.'),
-      ),
-    );
-  }
-},
-           );
+                    _reload(context);
+                  },
+                );
               },
             );
           }

@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:tala_trip_app/core/errors/failures.dart';
 import 'package:tala_trip_app/features/hotels/domain/entities/hotel_entity.dart';
 import 'package:tala_trip_app/features/hotels/domain/usecases/hotel_usecases.dart';
+import 'package:tala_trip_app/features/hotels/domain/usecases/upload_hotel_photo.dart';
 
 import 'hotel_event.dart';
 import 'hotel_state.dart';
@@ -19,6 +20,7 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
   final ApproveHotel _approveHotel;
   final RejectHotel _rejectHotel;
   final GetApprovedHotels _getApprovedHotels;
+  final UploadHotelPhoto _uploadHotelPhoto;
 
   HotelBloc({
     required this._createHotelDraft,
@@ -31,6 +33,7 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
     required this._approveHotel,
     required this._rejectHotel,
     required this._getApprovedHotels,
+    required this._uploadHotelPhoto,
   })  : super(HotelInitialState()) {
     // Process events one at a time.
     on<HotelEvent>(
@@ -46,21 +49,50 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
     emit(HotelLoadingState());
 
     if (event is CreateHotelDraftEvent) {
-      final result = await _createHotelDraft(
-        name: event.name,
-        description: event.description,
-        wilaya: event.wilaya,
-        address: event.address,
-        phoneNumber: event.phoneNumber,
-        images: event.images,
-        mapUrl: event.mapUrl,
-      );
+  final imageUrls = <String>[];
 
-      result.fold<void>(
-        (failure) => emit(HotelErrorState(message: failure.message)),
-        (hotel) => emit(HotelDraftCreatedState(hotel: hotel)),
-      );
+  for (final path in event.photoPaths) {
+    final uploadResult = await _uploadHotelPhoto(path);
+
+    Failure? uploadFailure;
+
+    uploadResult.fold<void>(
+      (failure) {
+        uploadFailure = failure;
+      },
+      (url) {
+        imageUrls.add(url);
+      },
+    );
+
+    final failure = uploadFailure;
+
+    if (failure != null) {
+      emit(HotelErrorState(message: failure.message));
       return;
+    }
+  }
+
+  final result = await _createHotelDraft(
+    name: event.name,
+    description: event.description,
+    wilaya: event.wilaya,
+    address: event.address,
+    phoneNumber: event.phoneNumber,
+    images: imageUrls,
+    mapUrl: event.mapUrl,
+  );
+
+  result.fold<void>(
+    (failure) {
+      emit(HotelErrorState(message: failure.message));
+    },
+    (hotel) {
+      emit(HotelDraftCreatedState(hotel: hotel));
+    },
+  );
+
+  return;
     }
 
     if (event is GetMyHotelsEvent) {
@@ -79,17 +111,75 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
       return;
     }
 
-    if (event is UpdateHotelDraftEvent) {
-      final result = await _updateHotelDraft(event.hotel);
+       if (event is UpdateHotelDraftEvent) {
+  final hotel = event.hotel;
 
-      _emitActionResult(
-        result,
-        emit,
-        hotelId: event.hotel.id,
-        action: HotelAction.updated,
-      );
+  // Only drafts and rejected hotels can be edited.
+  if (hotel.status.name != 'draft' &&
+      hotel.status.name != 'rejected') {
+    emit(
+      HotelErrorState(
+        message: 'Only draft or rejected hotels can be edited.',
+      ),
+    );
+    return;
+  }
+
+  // Keep the existing remote photos selected in the form.
+  final imageUrls = <String>[...hotel.images];
+
+  // Upload any newly selected phone photos.
+  for (final path in event.photoPaths) {
+    final uploadResult = await _uploadHotelPhoto(path);
+
+    Failure? uploadFailure;
+
+    uploadResult.fold<void>(
+      (failure) {
+        uploadFailure = failure;
+      },
+      (url) {
+        imageUrls.add(url);
+      },
+    );
+
+    final failure = uploadFailure;
+
+    if (failure != null) {
+      emit(HotelErrorState(message: failure.message));
       return;
     }
+  }
+
+  // Combine the edited information with the final photo URLs.
+  final updatedHotel = HotelEntity(
+    id: hotel.id,
+    ownerId: hotel.ownerId,
+    name: hotel.name,
+    description: hotel.description,
+    wilaya: hotel.wilaya,
+    address: hotel.address,
+    phoneNumber: hotel.phoneNumber,
+    images: List.unmodifiable(imageUrls),
+    mapUrl: hotel.mapUrl,
+    status: hotel.status,
+    createdAt: hotel.createdAt,
+    updatedAt: hotel.updatedAt,
+    reviewedAt: hotel.reviewedAt,
+    reviewedBy: hotel.reviewedBy,
+    rejectionReason: hotel.rejectionReason,
+  );
+
+  final result = await _updateHotelDraft(updatedHotel);
+
+  _emitActionResult(
+    result,
+    emit,
+    hotelId: hotel.id,
+    action: HotelAction.updated,
+  );
+  return;
+}
 
     if (event is DeleteHotelDraftEvent) {
       final result = await _deleteHotelDraft(event.id);

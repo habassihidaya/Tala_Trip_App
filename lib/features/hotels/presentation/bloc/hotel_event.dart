@@ -8,7 +8,7 @@ class CreateHotelDraftEvent extends HotelEvent {
   final String wilaya;
   final String address;
   final String phoneNumber;
-  final List<String> images;
+  final List<String> photoPaths;
   final String? mapUrl;
 
   CreateHotelDraftEvent({
@@ -17,9 +17,9 @@ class CreateHotelDraftEvent extends HotelEvent {
     required this.wilaya,
     required this.address,
     required this.phoneNumber,
-    required this.images,
+    required List<String> photoPaths,
     this.mapUrl,
-  });
+  }) : photoPaths = List.unmodifiable(photoPaths);
 }
 
 class GetMyHotelsEvent extends HotelEvent {}
@@ -32,8 +32,12 @@ class GetHotelByIdEvent extends HotelEvent {
 
 class UpdateHotelDraftEvent extends HotelEvent {
   final HotelEntity hotel;
+  final List<String> photoPaths;
 
-  UpdateHotelDraftEvent({required this.hotel});
+  UpdateHotelDraftEvent({
+    required this.hotel,
+    List<String> photoPaths = const [],
+  }) : photoPaths = List.unmodifiable(photoPaths);
 }
 
 class DeleteHotelDraftEvent extends HotelEvent {

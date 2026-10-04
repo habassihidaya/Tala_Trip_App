@@ -16,6 +16,15 @@ import 'package:tala_trip_app/features/hotels/domain/repositories/hotel_reposito
 import 'package:tala_trip_app/features/hotels/domain/usecases/hotel_usecases.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
 
+import 'package:http/http.dart' as http;
+
+import 'package:tala_trip_app/features/hotels/data/data_sources/cloudinary_hotel_photo_data_source.dart';
+import 'package:tala_trip_app/features/hotels/data/data_sources/hotel_photo_data_source.dart';
+import 'package:tala_trip_app/features/hotels/data/repositories/hotel_photo_repository_impl.dart';
+import 'package:tala_trip_app/features/hotels/domain/repositories/hotel_photo_repository.dart';
+import 'package:tala_trip_app/features/hotels/domain/usecases/upload_hotel_photo.dart';
+
+
 final getIt = GetIt.instance;
 
 void setupDependencies() {
@@ -141,10 +150,39 @@ getIt.registerLazySingleton<RejectHotel>(
 getIt.registerLazySingleton<GetApprovedHotels>(
   () => GetApprovedHotels(getIt<HotelRepository>()),
 );
+ // HTTP client for uploading photos.
+getIt.registerLazySingleton<http.Client>(
+  () => http.Client(),
+  dispose: (client) => client.close(),
+);
+
+// Photo data source.
+getIt.registerLazySingleton<HotelPhotoDataSource>(
+  () => CloudinaryHotelPhotoDataSource(
+    client: getIt<http.Client>(),
+    cloudName: 'lbkc13qt',
+    uploadPreset: 'tala_hotels',
+  ),
+);
+
+// Photo repository.
+getIt.registerLazySingleton<HotelPhotoRepository>(
+  () => HotelPhotoRepositoryImpl(
+    getIt<HotelPhotoDataSource>(),
+  ),
+);
+
+// Photo upload use case.
+getIt.registerLazySingleton<UploadHotelPhoto>(
+  () => UploadHotelPhoto(
+    getIt<HotelPhotoRepository>(),
+  ),
+);
 
 // Hotels: a fresh BLoC for each requesting page.
 getIt.registerFactory<HotelBloc>(
   () => HotelBloc(
+    uploadHotelPhoto: getIt<UploadHotelPhoto>(),
     createHotelDraft: getIt<CreateHotelDraft>(),
     getMyHotels: getIt<GetMyHotels>(),
     getHotelById: getIt<GetHotelById>(),

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../auth/presentation/blocs/auth_event.dart';
 import '../../../auth/presentation/blocs/auth_state.dart';
+import 'package:go_router/go_router.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -54,6 +55,16 @@ class AdminDashboardPage extends StatelessWidget {
                   'Review hotel-owner applications and '
                   'hotels submitted for publication.',
                 ),
+                 const SizedBox(height: 24),
+FilledButton.icon(
+  onPressed: authenticated == null || signingOut
+      ? null
+      : () {
+          context.push('/admin/hotels');
+        },
+  icon: const Icon(Icons.fact_check_outlined),
+  label: const Text('Review pending hotels'),
+),
                 if (signingOut) ...[
                   const SizedBox(height: 16),
                   const LinearProgressIndicator(),

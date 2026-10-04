@@ -11,7 +11,10 @@ import 'package:tala_trip_app/features/auth/presentation/pages/sign_up_page.dart
 import 'package:tala_trip_app/features/discovery/presentation/pages/traveler_home_page.dart';
 import 'package:tala_trip_app/features/hotel_owner/presentation/pages/hotel_owner_dashboard_page.dart';
 import 'package:tala_trip_app/features/hotels/presentation/pages/my_hotels_page.dart';
-
+import 'package:tala_trip_app/features/hotels/presentation/pages/add_hotel_page.dart';
+import 'package:tala_trip_app/features/hotels/presentation/pages/hotel_details_page.dart';
+import 'package:tala_trip_app/features/admin/presentation/pages/pending_hotels_page.dart';
+import 'package:tala_trip_app/features/hotels/domain/entities/hotel_entity.dart';
 import 'router_refresh_notifier.dart';
 
 GoRouter createAppRouter({
@@ -156,6 +159,54 @@ GoRouter createAppRouter({
        path: '/owner/hotels',
         builder: (context, state) => const MyHotelsPage(),
         ),
+        GoRoute(
+        path: '/owner/hotels/add',
+        builder: (context, state) => const AddHotelPage(),
+    ),
+    GoRoute(
+      path: '/owner/hotels/:hotelId',
+      builder: (context, state) {
+      return HotelDetailsPage(
+      hotelId: state.pathParameters['hotelId']!,
+    );
+  },
+),
+      GoRoute(
+       path: '/admin/hotels',
+      builder: (context, state) => const PendingHotelsPage(),
+),
+GoRoute(
+  path: '/admin/hotels/:hotelId',
+  builder: (context, state) {
+    return HotelDetailsPage(
+      hotelId: state.pathParameters['hotelId']!,
+    );
+  },
+),
+   GoRoute(
+  path: '/owner/hotels/:hotelId/edit',
+  redirect: (context, state) {
+    final hotel = state.extra;
+
+    // If the form data is missing or stale, return to details.
+    if (hotel is! HotelEntity ||
+        hotel.id != state.pathParameters['hotelId'] ||
+        (hotel.status.name != 'draft' &&
+            hotel.status.name != 'rejected')) {
+      final id = Uri.encodeComponent(
+        state.pathParameters['hotelId']!,
+      );
+      return '/owner/hotels/$id';
+    }
+
+    return null;
+  },
+  builder: (context, state) {
+    return AddHotelPage(
+      hotel: state.extra as HotelEntity,
+    );
+  },
+),
     ],
   );
 }
