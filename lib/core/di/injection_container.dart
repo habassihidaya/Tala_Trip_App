@@ -8,6 +8,12 @@ import 'package:tala_trip_app/features/auth/data/repositories/auth_repository_im
 import 'package:tala_trip_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:tala_trip_app/features/auth/domain/usecases/auth_usecases.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
+
+import 'package:tala_trip_app/features/hotels/data/data_sources/hotel_data_sources.dart';
+import 'package:tala_trip_app/features/hotels/data/data_sources/firebase_hotel_data_sources.dart';
+import 'package:tala_trip_app/features/hotels/data/repositories/hotel_repository_impl.dart';
+import 'package:tala_trip_app/features/hotels/domain/repositories/hotel_repository.dart';
+import 'package:tala_trip_app/features/hotels/domain/usecases/hotel_usecases.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
 
 final getIt = GetIt.instance;
@@ -82,4 +88,73 @@ void setupDependencies() {
       sendPasswordResetEmail: getIt<SendPasswordResetEmail>(),
     ),
   );
+  // Hotels: data source.
+getIt.registerLazySingleton<HotelDataSource>(
+  () => FirebaseHotelDataSource(
+    getIt<FirebaseAuth>(),
+    getIt<FirebaseFirestore>(),
+  ),
+);
+
+// Hotels: repository.
+getIt.registerLazySingleton<HotelRepository>(
+  () => HotelRepositoryImpl(getIt<HotelDataSource>()),
+);
+
+// Hotels: use cases.
+getIt.registerLazySingleton<CreateHotelDraft>(
+  () => CreateHotelDraft(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<GetMyHotels>(
+  () => GetMyHotels(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<GetHotelById>(
+  () => GetHotelById(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<UpdateHotelDraft>(
+  () => UpdateHotelDraft(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<DeleteHotelDraft>(
+  () => DeleteHotelDraft(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<SubmitHotelForReview>(
+  () => SubmitHotelForReview(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<GetPendingHotels>(
+  () => GetPendingHotels(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<ApproveHotel>(
+  () => ApproveHotel(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<RejectHotel>(
+  () => RejectHotel(getIt<HotelRepository>()),
+);
+
+getIt.registerLazySingleton<GetApprovedHotels>(
+  () => GetApprovedHotels(getIt<HotelRepository>()),
+);
+
+// Hotels: a fresh BLoC for each requesting page.
+getIt.registerFactory<HotelBloc>(
+  () => HotelBloc(
+    createHotelDraft: getIt<CreateHotelDraft>(),
+    getMyHotels: getIt<GetMyHotels>(),
+    getHotelById: getIt<GetHotelById>(),
+    updateHotelDraft: getIt<UpdateHotelDraft>(),
+    deleteHotelDraft: getIt<DeleteHotelDraft>(),
+    submitHotelForReview: getIt<SubmitHotelForReview>(),
+    getPendingHotels: getIt<GetPendingHotels>(),
+    approveHotel: getIt<ApproveHotel>(),
+    rejectHotel: getIt<RejectHotel>(),
+    getApprovedHotels: getIt<GetApprovedHotels>(),
+  ),
+);
 }

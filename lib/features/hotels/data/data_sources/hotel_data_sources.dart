@@ -1,26 +1,31 @@
 import 'package:tala_trip_app/features/hotels/data/models/hotel_model.dart';
 
 abstract class HotelDataSource {
-  Future<List<HotelModel>> createHotelDraft({
-    required String ownerId,
+  Future<HotelModel> createHotelDraft({
     required String name,
     required String description,
     required String wilaya,
-    required String adress,
-    required double phoneNumber,
+    required String address,
+    required String phoneNumber,
     required List<String> images,
-    required String mapUrl,
+    String? mapUrl,
   });
+
   Future<List<HotelModel>> getMyHotels();
+
   Future<HotelModel> getHotelById(String id);
-  Future<void> addHotelDraft(HotelModel hotel);
+
   Future<void> updateHotelDraft(HotelModel hotel);
+
   Future<void> deleteHotelDraft(String id);
-  Future<List<HotelModel>> submitHotelForReview();
+
+  Future<void> submitHotelForReview(String id);
+
   Future<List<HotelModel>> getPendingHotels();
+
   Future<void> approveHotel(String id);
+
   Future<void> rejectHotel(String id, String reason);
+
   Future<List<HotelModel>> getApprovedHotels();
-  
-  
 }

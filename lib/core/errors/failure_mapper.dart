@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 
 import 'exceptions.dart';
 import 'failures.dart';
@@ -14,6 +13,14 @@ Failure mapExceptionToFailure(Object error) {
       'Your account profile could not be found. Please contact support.',
     );
   }
+  if (error is HotelNotFoundException) {
+  return const ServerFailure(
+    'This hotel could not be found. It may have been deleted.',
+  );
+}
+  if (error is HotelOperationException) {
+  return ServerFailure(error.message);
+}
 
   if (error is FirebaseAuthException) {
     switch (error.code) {

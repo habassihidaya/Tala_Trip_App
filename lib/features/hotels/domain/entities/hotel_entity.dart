@@ -1,55 +1,58 @@
-
 import 'package:equatable/equatable.dart';
-import 'package:tala_trip_app/features/hotels/domain/entities/hotel_status.dart';
 
-class HotelEntity  extends Equatable {
+import 'hotel_status.dart';
+
+class HotelEntity extends Equatable {
   final String id;
   final String ownerId;
   final String name;
   final String description;
   final String wilaya;
-  final String adress;
-  final double phoneNumber;
+  final String address;
+  final String phoneNumber;
   final List<String> images;
-  final String mapUrl;
+  final String? mapUrl;
   final HotelStatus status;
   final DateTime createdAt;
-  final DateTime reviewedAt;
-  final String reviewedBy;
-  final String rejectedReason;
+  final DateTime updatedAt;
+  final DateTime? reviewedAt;
+  final String? reviewedBy;
+  final String? rejectionReason;
 
-
-  HotelEntity({
+  const HotelEntity({
     required this.id,
     required this.ownerId,
     required this.name,
     required this.description,
     required this.wilaya,
-    required this.adress,
+    required this.address,
     required this.phoneNumber,
     required this.images,
-    required this.mapUrl,
-    required this.status,
     required this.createdAt,
-    required this.reviewedAt,
-    required this.reviewedBy,
-    required this.rejectedReason,
+    required this.updatedAt,
+    this.status = HotelStatus.draft,
+    this.mapUrl,
+    this.reviewedAt,
+    this.reviewedBy,
+    this.rejectionReason,
   });
+
   @override
   List<Object?> get props => [
-    id,
-    ownerId,
-    name,
-    description,
-    wilaya,
-    adress,
-    phoneNumber,
-    images,
-    mapUrl,
-    status,
-    createdAt,
-    reviewedAt,
-    reviewedBy,
-    rejectedReason
-  ];
+        id,
+        ownerId,
+        name,
+        description,
+        wilaya,
+        address,
+        phoneNumber,
+        images,
+        mapUrl,
+        status,
+        createdAt,
+        updatedAt,
+        reviewedAt,
+        reviewedBy,
+        rejectionReason,
+      ];
 }

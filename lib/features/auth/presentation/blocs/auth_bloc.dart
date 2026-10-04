@@ -11,23 +11,15 @@ import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
-    required SignUp signUp,
-    required SignIn signIn, 
-    required WatchAuthState watchAuthState,
-    required SendVerificationEmail sendVerificationEmail,
-    required IsEmailVerified isEmailVerified,
-    required SendPasswordResetEmail sendPasswordResetEmail,
-    required GetUser getUser,
-    required SignOut signOut,
-  })  : _signUp = signUp,
-        _signIn = signIn,
-        _signOut = signOut,
-        _watchAuthState = watchAuthState,
-        _sendVerificationEmail = sendVerificationEmail,
-        _isEmailVerified = isEmailVerified,
-        _sendPasswordResetEmail = sendPasswordResetEmail,
-        _getUser = getUser,
-        super(AuthInitial()) {
+    required this._signUp,
+    required this._signIn, 
+    required this._watchAuthState,
+    required this._sendVerificationEmail,
+    required this._isEmailVerified,
+    required this._sendPasswordResetEmail,
+    required this._getUser,
+    required this._signOut,
+  })  : super(AuthInitial()) {
           on<AuthEvent>(
           _onAuthEvent,
            transformer: (events, mapper) => events.asyncExpand(mapper),

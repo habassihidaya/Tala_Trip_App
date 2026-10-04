@@ -10,6 +10,7 @@ import 'package:tala_trip_app/features/auth/presentation/pages/sign_in_page.dart
 import 'package:tala_trip_app/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:tala_trip_app/features/discovery/presentation/pages/traveler_home_page.dart';
 import 'package:tala_trip_app/features/hotel_owner/presentation/pages/hotel_owner_dashboard_page.dart';
+import 'package:tala_trip_app/features/hotels/presentation/pages/my_hotels_page.dart';
 
 import 'router_refresh_notifier.dart';
 
@@ -151,6 +152,10 @@ GoRouter createAppRouter({
         path: '/admin',
         builder: (context, state) => const AdminDashboardPage(),
       ),
+      GoRoute(
+       path: '/owner/hotels',
+        builder: (context, state) => const MyHotelsPage(),
+        ),
     ],
   );
 }
