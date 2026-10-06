@@ -4,8 +4,24 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'exceptions.dart';
 import 'failures.dart';
+import 'booking_exceptions.dart';
+import 'booking_failures.dart';
 
 Failure mapExceptionToFailure(Object error) {
+  if (error is BookingOutcomeUnknownException) {
+    return BookingOutcomeUnknownFailure(
+      operationId: error.operationId,
+      message: error.message,
+    );
+  }
+
+  if (error is BookingLocalStorageException) {
+    return BookingLocalStorageFailure(error.message);
+  }
+
+  if (error is BookingOperationException) {
+    return BookingOperationFailure(error.message);
+  }
   if (error is TimeoutException || error is http.ClientException) {
     return const NetworkFailure(
       'The request timed out or could not connect. Check your connection and retry.',

@@ -109,6 +109,18 @@ service cloud.firestore {
             'mapUrl', 'status', 'updatedAt', 'reviewedAt', 'reviewedBy', 'rejectionReason'
           ]);
       }
+      // Guard the final calendar state, including a simultaneous acceptance.
+      function protectsRoom(type) {
+        let old = resource.data.get('rooms', {}).get(type, null);
+        let next = request.resource.data.get('rooms', {}).get(type, null);
+        let p = /databases/$(database)/documents/hotels/$(hotelId)/roomAvailability/$(type);
+        return old == next || !existsAfter(p) || getAfter(p).data.lockUntil <= request.time
+          || (old != null && next != null && next.capacity == old.capacity
+            && next.totalRooms >= old.totalRooms);
+      }
+      function protectsReservations() {
+        return protectsRoom('single') && protectsRoom('double') && protectsRoom('suite');
+      }
       function ownerEditsRooms() {
         let data = request.resource.data;
         return (
@@ -147,7 +159,7 @@ service cloud.firestore {
         // Evaluate one validation path to stay within the expression budget.
         return (data.diff(resource.data).affectedKeys().hasAny(['rooms'])
           || data.diff(resource.data).affectedKeys().hasOnly(['rooms', 'updatedAt']))
-          ? ownerEditsRooms() && validRooms(data.get('rooms', {}))
+          ? ownerEditsRooms() && validRooms(data.get('rooms', {})) && protectsReservations()
           : (data.status == 'pending'
             ? ownerSubmitsDraft() && validHotel(data)
             : ownerEditsDraft() && validHotel(data));
@@ -158,6 +170,204 @@ service cloud.firestore {
             (request.resource.data.status == 'rejected' || validHotel(request.resource.data))));
       // Embedded room inventory disappears in the same delete; no orphan documents.
       allow delete: if ownsHotel() && resource.data.status == 'draft';
+    }
+    // Booking rules: seven nights maximum, pay at the hotel.
+    // Date-only values are UTC calendar labels. Algeria local midnight is UTC-1h.
+    function bookingNights(b) {
+      return int((b.checkOutDate - b.checkInDate).seconds() / 86400);
+    }
+    function twoDigits(n) { return n < 10 ? '0' + string(n) : string(n); }
+    function bookingDay(t) {
+      return string(t.year()) + '-' + twoDigits(t.month()) + '-' + twoDigits(t.day());
+    }
+    function calendarPath(b) {
+      return /databases/$(database)/documents/hotels/$(b.hotelId)/roomAvailability/$(b.roomType);
+    }
+    function countsBefore(p) { return exists(p) ? get(p).data.counts : {}; }
+    function checkFree(counts, start, nights, i, total) {
+      return i >= nights || counts.get(bookingDay(start + duration.value(i, 'd')), 0) < total;
+    }
+    function allNightsFree(b, total) {
+      let counts = countsBefore(calendarPath(b));
+      let n = bookingNights(b);
+      let s = b.checkInDate;
+      return checkFree(counts,s,n,0,total) && checkFree(counts,s,n,1,total)
+        && checkFree(counts,s,n,2,total) && checkFree(counts,s,n,3,total)
+        && checkFree(counts,s,n,4,total) && checkFree(counts,s,n,5,total)
+        && checkFree(counts,s,n,6,total);
+    }
+    function calendarChanged(b) {
+      let p = calendarPath(b);
+      let after = getAfter(p).data;
+      return after.lastBookingId == b.id && after.updatedAt == request.time
+        && after.counts != countsBefore(p);
+    }
+    function ownerOfBooking(b) {
+      return isHotelOwner() && b.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/hotels/$(b.hotelId)).data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId}/bookingRequests/{requestId} {
+      function newRequest() {
+        let d = request.resource.data;
+        return requestId.matches('^[0-9a-f]{32}$')
+          && d.keys().hasAll(['requestId','travelerId','bookingId','status','createdAt'])
+          && d.keys().hasOnly(['requestId','travelerId','bookingId','status','createdAt'])
+          && d.requestId == requestId && d.bookingId == requestId
+          && d.travelerId == userId && d.createdAt == request.time;
+      }
+      function pairedBooking() {
+        let p = /databases/$(database)/documents/bookings/$(requestId);
+        let b = getAfter(p).data;
+        return !exists(p) && b.id == requestId && b.requestId == requestId
+          && b.travelerId == userId && b.status == 'pending' && b.createdAt == request.time;
+      }
+      allow get: if isVerified() && isSelf(userId);
+      allow list: if false;
+      allow create: if isSelf(userId) && hasRole('traveler') && newRequest()
+        && ((request.resource.data.status == 'recorded' && pairedBooking())
+          || (request.resource.data.status == 'closed'
+            && !existsAfter(/databases/$(database)/documents/bookings/$(requestId))));
+      // Both outcomes are permanent; the app cannot reset or delete this ID.
+      allow update, delete: if false;
+    }
+
+    match /bookings/{bookingId} {
+      function readable() {
+        return (hasRole('traveler') && resource.data.travelerId == request.auth.uid)
+          || (isHotelOwner() && resource.data.ownerId == request.auth.uid);
+      }
+      function validDates(b) {
+        let today = (request.time + duration.value(1, 'h')).date();
+        return b.checkInDate is timestamp && b.checkOutDate is timestamp
+          && b.checkInDate == b.checkInDate.date() && b.checkOutDate == b.checkOutDate.date()
+          && b.checkInDate > today && b.checkInDate <= today + duration.value(365,'d')
+          && b.checkOutDate > b.checkInDate
+          && b.checkOutDate <= b.checkInDate + duration.value(7,'d')
+          && b.checkInStartsAt == b.checkInDate - duration.value(1,'h');
+      }
+      function validNewBooking(b) {
+        let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        let hotel = get(/databases/$(database)/documents/hotels/$(b.hotelId)).data;
+        let room = hotel.rooms[b.roomType];
+        let fields = ['id','requestId','travelerId','ownerId','hotelId','travelerName',
+          'travelerPhone','hotelName','hotelAddress','hotelPhone','roomType','capacityAtBooking',
+          'guests','checkInDate','checkOutDate','nightlyPriceInCentimes','totalPriceInCentimes',
+          'currency','status','createdAt','updatedAt','checkInStartsAt','decidedAt','decidedBy',
+          'rejectionReason','cancelledAt','cancelledBy'];
+        return b.keys().hasAll(fields) && b.keys().hasOnly(fields)
+          && bookingId.matches('^[0-9a-f]{32}$') && b.id == bookingId && b.requestId == bookingId
+          && b.travelerId == request.auth.uid && profile.role == 'traveler'
+          && b.hotelId is string && b.hotelId.size() > 0 && !b.hotelId.matches('.*[/].*')
+          && hotel.status == 'approved' && b.ownerId == hotel.ownerId
+          && b.roomType in ['single','double','suite']
+          && b.travelerName is string && b.travelerName.size() > 0 && b.travelerName.size() <= 120
+          && b.travelerName == profile.username.trim()
+          && b.travelerPhone is string && b.travelerPhone == profile.mobileNumber.trim()
+          && b.travelerPhone.matches('(0[1-9][0-9]{7,8}|\\+213[1-9][0-9]{7,8})')
+          && b.hotelName == hotel.name.trim() && b.hotelAddress == hotel.address.trim() && b.hotelPhone == hotel.phoneNumber.trim()
+          && b.capacityAtBooking == room.capacity && b.capacityAtBooking is int
+          && b.guests is int && b.guests >= 1 && b.guests <= room.capacity
+          && b.nightlyPriceInCentimes is int && b.nightlyPriceInCentimes == room.priceInCentimes
+          && b.totalPriceInCentimes is int
+          && b.totalPriceInCentimes == b.nightlyPriceInCentimes * bookingNights(b)
+          && b.currency == 'DZD' && b.status == 'pending'
+          && b.createdAt == request.time && b.updatedAt == request.time
+          && b.decidedAt == null && b.decidedBy == null && b.rejectionReason == null
+          && b.cancelledAt == null && b.cancelledBy == null
+          && validDates(b) && allNightsFree(b,room.totalRooms);
+      }
+      function hasNewRequest(b) {
+        let p = /databases/$(database)/documents/users/$(request.auth.uid)/bookingRequests/$(bookingId);
+        let after = getAfter(p).data;
+        return !exists(p) && after.status == 'recorded' && after.bookingId == bookingId
+          && after.requestId == bookingId && after.travelerId == request.auth.uid
+          && after.createdAt == request.time;
+      }
+      function ownerDecision(b, d) {
+        return ownerOfBooking(b) && b.status == 'pending'
+          && d.diff(b).affectedKeys().hasOnly(['status','updatedAt','decidedAt','decidedBy','rejectionReason'])
+          && d.decidedAt == request.time && d.decidedBy == request.auth.uid
+          && ((d.status == 'confirmed' && d.rejectionReason == null && calendarChanged(b))
+            || (d.status == 'rejected' && d.rejectionReason is string
+              && d.rejectionReason.size() <= 1000 && d.rejectionReason.matches('[\\s\\S]*\\S[\\s\\S]*')));
+      }
+      function travelerCancellation(b, d) {
+        return hasRole('traveler') && b.travelerId == request.auth.uid
+          && b.status in ['pending','confirmed'] && d.status == 'cancelled'
+          && d.diff(b).affectedKeys().hasOnly(['status','updatedAt','cancelledAt','cancelledBy'])
+          && d.cancelledAt == request.time && d.cancelledBy == request.auth.uid
+          && (b.status == 'pending' || calendarChanged(b));
+      }
+      // Submission/recovery must be able to check an unused random ID.
+      allow get: if isVerified() && ((!exists(/databases/$(database)/documents/bookings/$(bookingId))
+        && hasRole('traveler')) || readable());
+      allow list: if isVerified() && readable();
+      allow create: if isVerified() && validNewBooking(request.resource.data)
+        && hasNewRequest(request.resource.data);
+      allow update: if isVerified() && request.resource.data.updatedAt == request.time
+        && request.time < resource.data.checkInStartsAt
+        && (request.resource.data.status == 'cancelled'
+          ? travelerCancellation(resource.data, request.resource.data)
+          : ownerDecision(resource.data, request.resource.data));
+      allow delete: if false;
+    }
+
+    match /hotels/{hotelId}/roomAvailability/{roomType} {
+      function nightChange(a, z, s, n, i, delta, cap) {
+        return i >= n || countChange(a,z,bookingDay(s + duration.value(i,'d')),delta,cap);
+      }
+      function countChange(a, z, key, delta, cap) {
+        let old = a.get(key,0);
+        let next = z.get(key,0);
+        return old is int && next is int && old >= 0 && next >= 0
+          && next == old + delta && next <= cap;
+      }
+      function allChanges(a,z,b,delta,cap) {
+        let n = bookingNights(b);
+        let s = b.checkInDate;
+        return n >= 1 && n <= 7 && z.diff(a).affectedKeys().size() == n
+          && nightChange(a,z,s,n,0,delta,cap) && nightChange(a,z,s,n,1,delta,cap)
+          && nightChange(a,z,s,n,2,delta,cap) && nightChange(a,z,s,n,3,delta,cap)
+          && nightChange(a,z,s,n,4,delta,cap) && nightChange(a,z,s,n,5,delta,cap)
+          && nightChange(a,z,s,n,6,delta,cap);
+      }
+      function accepted(b, after, d, before) {
+        let h = getAfter(/databases/$(database)/documents/hotels/$(hotelId)).data;
+        let room = h.rooms[roomType];
+        let checkout = b.checkOutDate - duration.value(1,'h');
+        let oldLock = before.get('lockUntil',timestamp.value(0));
+        return b.status == 'pending' && after.status == 'confirmed'
+          && h.status == 'approved' && h.ownerId == request.auth.uid
+          && b.ownerId == request.auth.uid && b.guests <= room.capacity
+          && d.lockUntil == (oldLock > checkout ? oldLock : checkout)
+          && allChanges(before.get('counts',{}),d.counts,b,1,room.totalRooms);
+      }
+      function cancelled(b, after, d, before) {
+        return b.status == 'confirmed' && after.status == 'cancelled'
+          && b.travelerId == request.auth.uid && d.lockUntil == before.lockUntil
+          && allChanges(before.counts,d.counts,b,-1,10000);
+      }
+      function validCalendarWrite() {
+        let d = request.resource.data;
+        let bp = /databases/$(database)/documents/bookings/$(d.lastBookingId);
+        let b = get(bp).data;
+        let after = getAfter(bp).data;
+        let before = exists(/databases/$(database)/documents/hotels/$(hotelId)/roomAvailability/$(roomType))
+          ? resource.data : {};
+        return d.keys().hasAll(['hotelId','roomType','counts','lockUntil','lastBookingId','updatedAt'])
+          && d.keys().hasOnly(['hotelId','roomType','counts','lockUntil','lastBookingId','updatedAt'])
+          && d.hotelId == hotelId && d.roomType == roomType && d.counts is map
+          && d.lockUntil is timestamp && d.updatedAt == request.time
+          && b.id == d.lastBookingId && b.hotelId == hotelId && b.roomType == roomType
+          && after.updatedAt == request.time && request.time < b.checkInStartsAt
+          && (after.status == 'confirmed' ? accepted(b,after,d,before) : cancelled(b,after,d,before));
+      }
+      // Aggregate counts only. Contact details remain protected in bookings.
+      allow get: if isVerified();
+      allow list: if false;
+      allow create, update: if isVerified() && validCalendarWrite();
+      allow delete: if false;
     }
   }
 }
