@@ -3,17 +3,27 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 class RouterRefreshNotifier extends ChangeNotifier {
-  RouterRefreshNotifier(Stream<dynamic> stream) {
-    _subscription = stream.listen((_) {
-      notifyListeners();
-    });
-  }
+  final List<StreamSubscription<Object?>> _subscriptions = [];
 
-  late final StreamSubscription<dynamic> _subscription;
+  RouterRefreshNotifier(
+    Stream<Object?> stream, {
+    List<Stream<Object?>> additionalStreams = const [],
+  }) {
+    for (final source in [stream, ...additionalStreams]) {
+      _subscriptions.add(
+        source.listen((_) {
+          notifyListeners();
+        }),
+      );
+    }
+  }
 
   @override
   void dispose() {
-    _subscription.cancel();
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
+
     super.dispose();
   }
 }

@@ -20,6 +20,11 @@ class TravelerHomePage extends StatelessWidget {
         title: const Text('TALA Trip'),
         automaticallyImplyLeading: false,
         actions: [
+            IconButton(
+            tooltip: 'My bookings',
+            onPressed: () => context.push('/traveler/bookings'),
+            icon: const Icon(Icons.calendar_month_outlined),
+          ),
           BlocConsumer<AuthBloc, AuthState>(
             listenWhen: (previous, current) =>
                 current is AuthAuthenticated &&

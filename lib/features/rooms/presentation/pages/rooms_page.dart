@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tala_trip_app/core/di/injection_container.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_state.dart';
 import 'package:tala_trip_app/features/hotels/domain/entities/hotel_status.dart';
+import 'package:tala_trip_app/features/rooms/presentation/widgets/room_card.dart';
 import '../../domain/entities/room_entity.dart';
 import '../bloc/room_bloc.dart';
 import '../bloc/room_event.dart';
@@ -91,6 +93,13 @@ class _RoomsView extends StatelessWidget {
             catalog != null &&
             ownsHotel &&
             catalog.hotelStatus != HotelStatus.pending;
+        final isTraveler =
+            auth is AuthAuthenticated &&
+            auth.user.role == UserRole.traveler;
+
+        final isAdmin =
+            auth is AuthAuthenticated &&
+            auth.user.role == UserRole.admin;
         return PopScope(
           canPop: !state.saving,
           child: Scaffold(
@@ -154,53 +163,31 @@ class _RoomsView extends StatelessWidget {
                           child: Text('No room types have been added yet.'),
                         ),
                       for (final room in catalog.rooms)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  room.type.label,
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                Text(
-                                  'Up to ${room.capacity} guest${room.capacity == 1 ? '' : 's'} per room',
-                                ),
-                                Text('${room.priceText} DZD / night'),
-                                if (ownsHotel ||
-                                    (auth is AuthAuthenticated &&
-                                        auth.user.role == UserRole.admin))
-                                  Text(
-                                    '${room.totalRooms} rooms in this category',
-                                  ),
-                                if (editable)
-                                  Wrap(
-                                    spacing: 12,
-                                    children: [
-                                      TextButton.icon(
-                                        onPressed: state.saving
-                                            ? null
-                                            : () => _edit(
-                                                context,
-                                                room.type,
-                                                room,
-                                              ),
-                                        icon: const Icon(Icons.edit_outlined),
-                                        label: const Text('Edit'),
-                                      ),
-                                      TextButton.icon(
-                                        onPressed: state.saving
-                                            ? null
-                                            : () => _delete(context, room),
-                                        icon: const Icon(Icons.delete_outline),
-                                        label: const Text('Remove'),
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
+                         RoomCard(
+                          room: room,
+                          showInventory: ownsHotel || isAdmin,
+                          canEdit: editable,
+                          busy: state.saving,
+                          onEdit: () => _edit(
+                            context,
+                            room.type,
+                            room,
                           ),
+                          onDelete: () => _delete(
+                            context,
+                            room,
+                          ),
+                          onBook: isTraveler &&
+                                  catalog.hotelStatus ==
+                                      HotelStatus.approved
+                              ? () {
+                                  context.push(
+                                    '/traveler/hotels/'
+                                    '${Uri.encodeComponent(catalog.hotelId)}'
+                                    '/book/${room.type.name}',
+                                  );
+                                }
+                              : null,
                         ),
                       if (editable) ...[
                         const SizedBox(height: 16),

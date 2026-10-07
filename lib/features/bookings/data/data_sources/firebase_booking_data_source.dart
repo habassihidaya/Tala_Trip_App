@@ -19,16 +19,12 @@ class FirebaseBookingDataSource implements BookingDataSource {
   final FirebaseBookingActions _actions;
 
   FirebaseBookingDataSource({
-    required FirebaseBookingReader reader,
-    required FirebaseBookingAvailability availability,
-    required FirebaseBookingSubmitter submitter,
-    required FirebaseBookingRecovery recovery,
-    required FirebaseBookingActions actions,
-  }) : _reader = reader,
-       _availability = availability,
-       _submitter = submitter,
-       _recovery = recovery,
-       _actions = actions;
+  required this._reader,
+  required this._availability,
+  required this._submitter,
+  required this._recovery,
+  required this._actions,
+});
 
   @override
   String get currentUserId => _reader.currentUserId;

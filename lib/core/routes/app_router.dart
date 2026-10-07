@@ -6,7 +6,10 @@ import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_state.dart';
 import 'package:tala_trip_app/features/auth/presentation/pages/account_type_page.dart';
-import 'package:tala_trip_app/features/auth/presentation/pages/session_check_page.dart';
+import 'package:tala_trip_app/features/onboarding/presentation/bloc/onboarding_bloc.dart';
+import 'package:tala_trip_app/features/onboarding/presentation/bloc/onboarding_state.dart';
+import 'package:tala_trip_app/features/onboarding/presentation/pages/onboarding_page.dart';
+import 'package:tala_trip_app/features/onboarding/presentation/pages/splash_page.dart';
 import 'package:tala_trip_app/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:tala_trip_app/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:tala_trip_app/features/discovery/presentation/pages/traveler_home_page.dart';
@@ -16,36 +19,75 @@ import 'package:tala_trip_app/features/hotels/presentation/pages/add_hotel_page.
 import 'package:tala_trip_app/features/hotels/presentation/pages/hotel_details_page.dart';
 import 'package:tala_trip_app/features/admin/presentation/pages/pending_hotels_page.dart';
 import 'package:tala_trip_app/features/hotels/domain/entities/hotel_entity.dart';
+import 'package:tala_trip_app/features/bookings/presentation/pages/booking_form_page.dart';
+import 'package:tala_trip_app/features/rooms/domain/entities/room_entity.dart';
+import 'package:tala_trip_app/features/bookings/presentation/pages/my_bookings_page.dart';
+import 'package:tala_trip_app/features/bookings/presentation/pages/owner_bookings_page.dart';
 import 'router_refresh_notifier.dart';
 
 GoRouter createAppRouter({
   required AuthBloc authBloc,
+  required OnboardingBloc onboardingBloc,
   required RouterRefreshNotifier refreshNotifier,
+  required bool Function() isSplashReady,
 }) {
   bool startupResolved = false;
 
   return GoRouter(
-    initialLocation: '/session-check',
+    initialLocation: '/splash',
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
-      final authState = authBloc.state;
       final location = state.uri.path;
-      final isSessionCheck = location == '/session-check';
+      // Show the splash for at least two seconds.
+      if (!isSplashReady()) {
+        return location == '/splash' ? null : '/splash';
+      }
+      final onboardingState = onboardingBloc.state;
+      final authState = authBloc.state;
+
+      final isSplash = location == '/splash';
+      final isOnboarding = location == '/onboarding';
+
+      // First, wait for the saved onboarding preference.
+      // A failed check stays on SplashPage with Retry.
+      if (onboardingState is OnboardingInitial ||
+          onboardingState is OnboardingChecking ||
+          onboardingState is OnboardingCheckFailure) {
+        return isSplash ? null : '/splash';
+      }
+
+      // Keep onboarding visible until completion is saved.
+      // Auth changes must not interrupt these pages.
+      if (onboardingState is OnboardingRequired ||
+          onboardingState is OnboardingSaving ||
+          onboardingState is OnboardingSaveFailure) {
+        return isOnboarding ? null : '/onboarding';
+      }
+
+      // Only continue after onboarding is completed.
+      if (onboardingState is! OnboardingCompleted) {
+        return isSplash ? null : '/splash';
+      }
 
       final hasSessionResult =
           authState is AuthAuthenticated ||
           authState is AuthUnauthenticated ||
           authState is AuthVerificationRequired;
 
-      // Wait for the initial session check.
-      // Startup errors stay on the session-check page with Retry.
+      // Wait for the initial authentication result.
       if (!startupResolved) {
         if (!hasSessionResult) {
-          return isSessionCheck ? null : '/session-check';
+          return isSplash ? null : '/splash';
         }
 
         startupResolved = true;
       }
+
+      final isStartupPage =
+          isSplash ||
+          isOnboarding ||
+          location == '/session-check' ||
+          location == '/';
 
       final isTravelerRoute =
           location == '/traveler' || location.startsWith('/traveler/');
@@ -58,17 +100,21 @@ GoRouter createAppRouter({
 
       final isProtectedRoute = isTravelerRoute || isOwnerRoute || isAdminRoute;
 
-      // Require an authenticated, verified session for private pages.
+      // Private pages require an authenticated, verified user.
       if (authState is! AuthAuthenticated) {
-        if (isSessionCheck) {
-          return hasSessionResult ? '/sign-in' : null;
-        }
+        if (isStartupPage) {
+          if (!hasSessionResult) {
+            return isSplash ? null : '/splash';
+          }
 
-        if (isProtectedRoute || location == '/') {
           return '/sign-in';
         }
 
-        // Email verification is currently handled on SignInPage.
+        if (isProtectedRoute) {
+          return '/sign-in';
+        }
+
+        // Keep existing sign-in, registration and verification behavior.
         return null;
       }
 
@@ -85,12 +131,11 @@ GoRouter createAppRouter({
           location == '/sign-up' ||
           location == '/account-type';
 
-      // Open the correct home after sign-in or session restoration.
-      if (isSessionCheck || isAuthPage || location == '/') {
+      if (isStartupPage || isAuthPage) {
         return homePath;
       }
 
-      // Protect each role's private area.
+      // Prevent access to another role's private area.
       final wrongRole =
           (isTravelerRoute && role != UserRole.traveler) ||
           (isOwnerRoute && role != UserRole.hotelOwner) ||
@@ -116,9 +161,12 @@ GoRouter createAppRouter({
         ),
 
       GoRoute(path: '/', redirect: (context, state) => '/session-check'),
+      GoRoute(path: '/', redirect: (context, state) => '/splash'),
+      GoRoute(path: '/session-check', redirect: (context, state) => '/splash'),
+      GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
       GoRoute(
-        path: '/session-check',
-        builder: (context, state) => const SessionCheckPage(),
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingPage(),
       ),
       GoRoute(
         path: '/sign-in',
@@ -147,6 +195,15 @@ GoRouter createAppRouter({
 
           return SignUpPage(role: role);
         },
+      ),
+      GoRoute(
+        path: '/traveler/bookings',
+        builder: (context, state) => const MyBookingsPage(),
+      ),
+
+      GoRoute(
+        path: '/owner/bookings',
+        builder: (context, state) => const OwnerBookingsPage(),
       ),
       GoRoute(
         path: '/traveler',
@@ -202,6 +259,30 @@ GoRouter createAppRouter({
         },
         builder: (context, state) {
           return AddHotelPage(hotel: state.extra as HotelEntity);
+        },
+      ),
+      GoRoute(
+        path: '/traveler/hotels/:hotelId/book/:roomType',
+        redirect: (context, state) {
+          final roomTypeName = state.pathParameters['roomType'];
+
+          final validRoomType = RoomType.values.any(
+            (roomType) => roomType.name == roomTypeName,
+          );
+
+          return validRoomType ? null : '/traveler';
+        },
+        builder: (context, state) {
+          final roomTypeName = state.pathParameters['roomType']!;
+
+          final roomType = RoomType.values.firstWhere(
+            (item) => item.name == roomTypeName,
+          );
+
+          return BookingFormPage(
+            hotelId: state.pathParameters['hotelId']!,
+            roomType: roomType,
+          );
         },
       ),
     ],

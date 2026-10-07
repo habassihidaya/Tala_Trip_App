@@ -84,6 +84,13 @@ class HotelOwnerDashboardPage extends StatelessWidget {
           icon: const Icon(Icons.hotel),
           label: const Text('My hotels'),
         ),
+        const SizedBox(height: 12),
+
+        ElevatedButton.icon(
+          onPressed: () => context.push('/owner/bookings'),
+          icon: const Icon(Icons.calendar_month_outlined),
+          label: const Text('Booking requests'),
+      ),
       ],
     ),
   ),

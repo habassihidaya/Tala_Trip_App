@@ -30,9 +30,42 @@ import 'package:tala_trip_app/features/hotels/data/repositories/hotel_photo_repo
 import 'package:tala_trip_app/features/hotels/domain/repositories/hotel_photo_repository.dart';
 import 'package:tala_trip_app/features/hotels/domain/usecases/upload_hotel_photo.dart';
 
+import 'package:tala_trip_app/core/time/algeria_time.dart';
+
+import 'package:tala_trip_app/features/bookings/data/data_sources/booking_data_source.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/booking_submission_local_data_source.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/sqlite_booking_submission_local_data_source.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/firebase_booking_reader.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/firebase_booking_availability.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/firebase_booking_submitter.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/firebase_booking_recovery.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/firebase_booking_actions.dart';
+import 'package:tala_trip_app/features/bookings/data/data_sources/firebase_booking_data_source.dart';
+
+import 'package:tala_trip_app/features/bookings/data/repositories/booking_repository_impl.dart';
+import 'package:tala_trip_app/features/bookings/domain/repositories/booking_repository.dart';
+import 'package:tala_trip_app/features/bookings/domain/usecases/booking_usecases.dart';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
+
+import 'package:tala_trip_app/core/network/network_info.dart';
+import 'package:tala_trip_app/features/bookings/presentation/bloc/booking_form_bloc.dart';
+import 'package:tala_trip_app/features/rooms/domain/entities/room_entity.dart';
+
+import 'package:tala_trip_app/features/bookings/presentation/bloc/booking_list_bloc.dart';
+import 'package:tala_trip_app/features/bookings/presentation/bloc/booking_list_event.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:tala_trip_app/features/onboarding/data/data_sources/onboarding_local_data_source.dart';
+import 'package:tala_trip_app/features/onboarding/data/repositories/onboarding_repository_impl.dart';
+import 'package:tala_trip_app/features/onboarding/domain/repositories/onboarding_repository.dart';
+import 'package:tala_trip_app/features/onboarding/domain/usecases/onboarding_usecases.dart';
+import 'package:tala_trip_app/features/onboarding/presentation/bloc/onboarding_bloc.dart';
+
 final getIt = GetIt.instance;
 
-void setupDependencies() {
+Future<void> setupDependencies() async {
   // Firebase services
   getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
 
@@ -208,6 +241,202 @@ void setupDependencies() {
       getIt<GetRooms>(),
       getIt<SaveRoom>(),
       getIt<DeleteRoom>(),
+    ),
+  );
+      // Bookings: Algeria's calendar dates and local time.
+  getIt.registerLazySingleton<AlgeriaTime>(
+    () => AlgeriaTime.initialize(),
+  );
+
+  // Bookings: open local storage before starting the app.
+  final bookingLocalDataSource =
+      await SqliteBookingSubmissionLocalDataSource.open();
+
+  getIt.registerSingleton<BookingSubmissionLocalDataSource>(
+    bookingLocalDataSource,
+    dispose: (_) => bookingLocalDataSource.close(),
+  );
+
+  // Bookings: Firebase helpers.
+  getIt.registerLazySingleton<FirebaseBookingReader>(
+    () => FirebaseBookingReader(
+      getIt<FirebaseAuth>(),
+      getIt<FirebaseFirestore>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<FirebaseBookingAvailability>(
+    () => FirebaseBookingAvailability(
+      getIt<FirebaseAuth>(),
+      getIt<FirebaseFirestore>(),
+      getIt<AlgeriaTime>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<FirebaseBookingSubmitter>(
+    () => FirebaseBookingSubmitter(
+      getIt<FirebaseAuth>(),
+      getIt<FirebaseFirestore>(),
+      getIt<FirebaseBookingReader>(),
+      getIt<AlgeriaTime>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<FirebaseBookingRecovery>(
+    () => FirebaseBookingRecovery(
+      getIt<FirebaseAuth>(),
+      getIt<FirebaseFirestore>(),
+      getIt<FirebaseBookingReader>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<FirebaseBookingActions>(
+    () => FirebaseBookingActions(
+      getIt<FirebaseAuth>(),
+      getIt<FirebaseFirestore>(),
+      getIt<FirebaseBookingReader>(),
+      getIt<AlgeriaTime>(),
+    ),
+  );
+
+  // Bookings: combine the helpers behind one data source.
+  getIt.registerLazySingleton<BookingDataSource>(
+    () => FirebaseBookingDataSource(
+      reader: getIt<FirebaseBookingReader>(),
+      availability: getIt<FirebaseBookingAvailability>(),
+      submitter: getIt<FirebaseBookingSubmitter>(),
+      recovery: getIt<FirebaseBookingRecovery>(),
+      actions: getIt<FirebaseBookingActions>(),
+    ),
+  );
+
+  // Bookings: one shared repository for submission coordination.
+  getIt.registerLazySingleton<BookingRepository>(
+    () => BookingRepositoryImpl(
+      getIt<BookingDataSource>(),
+      getIt<BookingSubmissionLocalDataSource>(),
+    ),
+  );
+
+  // Bookings: use cases.
+  getIt.registerLazySingleton<CheckBookingAvailability>(
+    () => CheckBookingAvailability(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<PrepareBookingSubmission>(
+    () => PrepareBookingSubmission(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<SubmitBooking>(
+    () => SubmitBooking(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<ResolveBookingSubmission>(
+    () => ResolveBookingSubmission(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetUnresolvedBookingSubmissions>(
+    () => GetUnresolvedBookingSubmissions(
+      getIt<BookingRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<GetMyBookings>(
+    () => GetMyBookings(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetOwnerBookings>(
+    () => GetOwnerBookings(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetBookingById>(
+    () => GetBookingById(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<AcceptBooking>(
+    () => AcceptBooking(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<RejectBooking>(
+    () => RejectBooking(getIt<BookingRepository>()),
+  );
+
+  getIt.registerLazySingleton<CancelBooking>(
+    () => CancelBooking(getIt<BookingRepository>()),
+  );
+    // Booking form network check.
+  getIt.registerLazySingleton<NetworkInfo>(
+    () => ConnectivityNetworkInfo(
+      Connectivity(),
+    ),
+  );
+
+  // A new form BLoC for each hotel and room page.
+  getIt.registerFactoryParam<BookingFormBloc, String, RoomType>(
+    (hotelId, roomType) => BookingFormBloc(
+      hotelId: hotelId,
+      roomType: roomType,
+      checkAvailability: getIt<CheckBookingAvailability>(),
+      prepareSubmission: getIt<PrepareBookingSubmission>(),
+      submitBooking: getIt<SubmitBooking>(),
+      resolveSubmission: getIt<ResolveBookingSubmission>(),
+      getUnresolvedSubmissions:
+          getIt<GetUnresolvedBookingSubmissions>(),
+      networkInfo: getIt<NetworkInfo>(),
+      algeriaTime: getIt<AlgeriaTime>(),
+    ),
+    
+
+  );
+    // Booking lists: a separate BLoC for travelers and owners.
+  getIt.registerFactoryParam<BookingListBloc, BookingListAudience, void>(
+    (audience, _) => BookingListBloc(
+      audience: audience,
+      getMyBookings: getIt<GetMyBookings>(),
+      getOwnerBookings: getIt<GetOwnerBookings>(),
+      acceptBooking: getIt<AcceptBooking>(),
+      rejectBooking: getIt<RejectBooking>(),
+      cancelBooking: getIt<CancelBooking>(),
+    ),
+  );
+
+    // Onboarding: local preferences.
+  getIt.registerLazySingleton<SharedPreferencesAsync>(
+    () => SharedPreferencesAsync(),
+  );
+
+  // Onboarding: data source.
+  getIt.registerLazySingleton<OnboardingLocalDataSource>(
+    () => OnboardingLocalDataSource(
+      getIt<SharedPreferencesAsync>(),
+    ),
+  );
+
+  // Onboarding: repository.
+  getIt.registerLazySingleton<OnboardingRepository>(
+    () => OnboardingRepositoryImpl(
+      getIt<OnboardingLocalDataSource>(),
+    ),
+  );
+
+  // Onboarding: use cases.
+  getIt.registerLazySingleton<CheckOnboardingCompleted>(
+    () => CheckOnboardingCompleted(
+      getIt<OnboardingRepository>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CompleteOnboarding>(
+    () => CompleteOnboarding(
+      getIt<OnboardingRepository>(),
+    ),
+  );
+
+  // Onboarding: BLoC.
+    getIt.registerFactory<OnboardingBloc>(
+    () => OnboardingBloc(
+      getIt<CheckOnboardingCompleted>(),
+      getIt<CompleteOnboarding>(),
     ),
   );
 }

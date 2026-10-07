@@ -46,3 +46,21 @@ app.*.map.json
 
 # Local Firestore test tooling
 **/node_modules/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Android signing credentials
+android/key.properties
+*.jks
+*.keystore
+
+# Private credentials
+secrets/
+service-account*.json
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+*.p12
+*.p8
