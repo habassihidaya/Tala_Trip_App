@@ -38,7 +38,7 @@ GoRouter createAppRouter({
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final location = state.uri.path;
-      // Show the splash for at least two seconds.
+
       if (!isSplashReady()) {
         return location == '/splash' ? null : '/splash';
       }
@@ -48,8 +48,6 @@ GoRouter createAppRouter({
       final isSplash = location == '/splash';
       final isOnboarding = location == '/onboarding';
 
-      // First, wait for the saved onboarding preference.
-      // A failed check stays on SplashPage with Retry.
       if (onboardingState is OnboardingInitial ||
           onboardingState is OnboardingChecking ||
           onboardingState is OnboardingCheckFailure) {
@@ -160,7 +158,6 @@ GoRouter createAppRouter({
               RoomsPage(hotelId: state.pathParameters['hotelId']!),
         ),
 
-      GoRoute(path: '/', redirect: (context, state) => '/session-check'),
       GoRoute(path: '/', redirect: (context, state) => '/splash'),
       GoRoute(path: '/session-check', redirect: (context, state) => '/splash'),
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),

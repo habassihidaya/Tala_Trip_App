@@ -17,9 +17,9 @@ class OwnerBookingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => GetIt.instance<BookingListBloc>(
-        param1: BookingListAudience.owner,
-      )..add(const BookingListStarted()),
+      create: (_) =>
+          GetIt.instance<BookingListBloc>(param1: BookingListAudience.owner)
+            ..add(const BookingListStarted()),
       child: const _OwnerBookingsView(),
     );
   }
@@ -56,9 +56,7 @@ class _OwnerBookingsView extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      context.read<BookingListBloc>().add(
-        BookingAcceptRequested(booking.id),
-      );
+      context.read<BookingListBloc>().add(BookingAcceptRequested(booking.id));
     }
   }
 
@@ -106,10 +104,7 @@ class _OwnerBookingsView extends StatelessWidget {
             FilledButton(
               onPressed: () {
                 if (formKey.currentState!.validate()) {
-                  Navigator.pop(
-                    dialogContext,
-                    controller.text.trim(),
-                  );
+                  Navigator.pop(dialogContext, controller.text.trim());
                 }
               },
               child: const Text('Reject'),
@@ -123,18 +118,12 @@ class _OwnerBookingsView extends StatelessWidget {
 
     if (reason != null && context.mounted) {
       context.read<BookingListBloc>().add(
-        BookingRejectRequested(
-          bookingId: booking.id,
-          reason: reason,
-        ),
+        BookingRejectRequested(bookingId: booking.id, reason: reason),
       );
     }
   }
 
-  Future<void> _callTraveler(
-    BuildContext context,
-    String phoneNumber,
-  ) async {
+  Future<void> _callTraveler(BuildContext context, String phoneNumber) async {
     final opened = await BookingContactLauncher.call(phoneNumber);
 
     if (!opened && context.mounted) {
@@ -146,13 +135,8 @@ class _OwnerBookingsView extends StatelessWidget {
     }
   }
 
-  Future<void> _openWhatsApp(
-    BuildContext context,
-    String phoneNumber,
-  ) async {
-    final opened = await BookingContactLauncher.openWhatsApp(
-      phoneNumber,
-    );
+  Future<void> _openWhatsApp(BuildContext context, String phoneNumber) async {
+    final opened = await BookingContactLauncher.openWhatsApp(phoneNumber);
 
     if (!opened && context.mounted) {
       _showMessage(
@@ -186,8 +170,8 @@ class _OwnerBookingsView extends StatelessWidget {
                 onPressed: state.isBusy
                     ? null
                     : () => context.read<BookingListBloc>().add(
-                          const BookingListRefreshRequested(),
-                        ),
+                        const BookingListRefreshRequested(),
+                      ),
                 icon: const Icon(Icons.refresh),
               ),
             ],
@@ -197,48 +181,48 @@ class _OwnerBookingsView extends StatelessWidget {
               : state.status == BookingListStatus.failure &&
                     state.bookings.isEmpty
               ? _ErrorView(
-                  message: state.message ??
-                      'Booking requests could not be loaded.',
+                  message:
+                      state.message ?? 'Booking requests could not be loaded.',
                 )
               : state.bookings.isEmpty
-              ? const Center(
-                  child: Text('No booking requests yet.'),
-                )
+              ? const Center(child: Text('No booking requests yet.'))
               : RefreshIndicator(
                   onRefresh: () async {
-                    context.read<BookingListBloc>().add(
-                      const BookingListRefreshRequested(),
-                    );
+                    final bloc = context.read<BookingListBloc>();
 
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 300),
-                    );
+                    if (bloc.state.isBusy) return;
+
+                    // Listen before requesting the refresh.
+                    final refreshFinished = bloc.stream
+                        .where(
+                          (state) =>
+                              state.status == BookingListStatus.loaded ||
+                              state.status == BookingListStatus.failure,
+                        )
+                        .take(1)
+                        .drain<void>();
+
+                    bloc.add(const BookingListRefreshRequested());
+
+                    await refreshFinished;
                   },
+
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     itemCount: state.bookings.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final booking = state.bookings[index];
 
                       return BookingCard(
                         booking: booking,
                         ownerView: true,
-                        onCall: () => _callTraveler(
-                          context,
-                          booking.travelerPhone,
-                        ),
-                        onWhatsApp: () => _openWhatsApp(
-                          context,
-                          booking.travelerPhone,
-                        ),
-                        actions: _ownerActions(
-                          context,
-                          booking,
-                          state,
-                        ),
+                        onCall: () =>
+                            _callTraveler(context, booking.travelerPhone),
+                        onWhatsApp: () =>
+                            _openWhatsApp(context, booking.travelerPhone),
+                        actions: _ownerActions(context, booking, state),
                       );
                     },
                   ),
@@ -257,9 +241,9 @@ class _OwnerBookingsView extends StatelessWidget {
       return null;
     }
 
-    final beforeCheckIn = DateTime.now()
-        .toUtc()
-        .isBefore(booking.checkInStartsAt);
+    final beforeCheckIn = DateTime.now().toUtc().isBefore(
+      booking.checkInStartsAt,
+    );
 
     if (!beforeCheckIn) {
       return const Text(
@@ -274,16 +258,12 @@ class _OwnerBookingsView extends StatelessWidget {
       spacing: 12,
       children: [
         FilledButton.icon(
-          onPressed: busy
-              ? null
-              : () => _acceptBooking(context, booking),
+          onPressed: busy ? null : () => _acceptBooking(context, booking),
           icon: const Icon(Icons.check),
           label: Text(busy ? 'Processing…' : 'Accept'),
         ),
         OutlinedButton.icon(
-          onPressed: busy
-              ? null
-              : () => _rejectBooking(context, booking),
+          onPressed: busy ? null : () => _rejectBooking(context, booking),
           icon: const Icon(Icons.close),
           label: const Text('Reject'),
         ),
@@ -295,9 +275,7 @@ class _OwnerBookingsView extends StatelessWidget {
 class _ErrorView extends StatelessWidget {
   final String message;
 
-  const _ErrorView({
-    required this.message,
-  });
+  const _ErrorView({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -311,8 +289,8 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () => context.read<BookingListBloc>().add(
-                    const BookingListRefreshRequested(),
-                  ),
+                const BookingListRefreshRequested(),
+              ),
               child: const Text('Retry'),
             ),
           ],
@@ -322,11 +300,6 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-void _showMessage(
-  BuildContext context,
-  String message,
-) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
+void _showMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

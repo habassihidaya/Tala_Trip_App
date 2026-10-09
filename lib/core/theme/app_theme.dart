@@ -8,27 +8,28 @@ class AppTheme {
   static final ThemeData light = _buildLightTheme();
 
   static ThemeData _buildLightTheme() {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: AppColors.primary,
-      onPrimary: AppColors.onPrimary,
-      primaryContainer: AppColors.lightBlue,
-      onPrimaryContainer: AppColors.textPrimary,
-      secondary: AppColors.accentAction,
-      onSecondary: AppColors.onPrimary,
-      secondaryContainer: AppColors.skyBlue,
-      onSecondaryContainer: AppColors.textPrimary,
-      tertiaryContainer: AppColors.warmBeige,
-      onTertiaryContainer: AppColors.textPrimary,
-      surface: AppColors.surface,
-      onSurface: AppColors.textPrimary,
-      onSurfaceVariant: AppColors.textSecondary,
-      outlineVariant: AppColors.border,
-      error: AppColors.error,
-      onError: AppColors.onPrimary,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColors.primary,
+          onPrimary: AppColors.onPrimary,
+          primaryContainer: AppColors.lightBlue,
+          onPrimaryContainer: AppColors.textPrimary,
+          secondary: AppColors.accentAction,
+          onSecondary: AppColors.onPrimary,
+          secondaryContainer: AppColors.skyBlue,
+          onSecondaryContainer: AppColors.textPrimary,
+          tertiaryContainer: AppColors.warmBeige,
+          onTertiaryContainer: AppColors.textPrimary,
+          surface: AppColors.surface,
+          onSurface: AppColors.textPrimary,
+          onSurfaceVariant: AppColors.textSecondary,
+          outlineVariant: AppColors.border,
+          error: AppColors.error,
+          onError: AppColors.onPrimary,
+        );
 
     final base = ThemeData(
       useMaterial3: true,
@@ -40,10 +41,7 @@ class AppTheme {
       borderRadius: BorderRadius.circular(16),
     );
 
-    const buttonPadding = EdgeInsets.symmetric(
-      horizontal: 24,
-      vertical: 16,
-    );
+    const buttonPadding = EdgeInsets.symmetric(horizontal: 24, vertical: 16);
 
     const buttonTextStyle = TextStyle(
       fontSize: 16,
@@ -52,16 +50,14 @@ class AppTheme {
 
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(
-        color: AppColors.textSecondary,
-      ),
+      borderSide: const BorderSide(color: AppColors.textSecondary),
     );
 
     return base.copyWith(
       textTheme: base.textTheme.copyWith(
         headlineMedium: const TextStyle(
           fontSize: 28,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
           height: 1.2,
           color: AppColors.textPrimary,
         ),
@@ -136,19 +132,13 @@ class AppTheme {
         border: inputBorder,
         enabledBorder: inputBorder,
         focusedBorder: inputBorder.copyWith(
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: inputBorder.copyWith(
           borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: inputBorder.copyWith(
-          borderSide: const BorderSide(
-            color: AppColors.error,
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
       ),
 

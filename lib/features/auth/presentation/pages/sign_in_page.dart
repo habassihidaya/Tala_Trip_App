@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/validation/auth_validation.dart';
 import '../blocs/auth_bloc.dart';
 import '../blocs/auth_event.dart';
 import '../blocs/auth_state.dart';
-
+import '../widgets/auth_page_layout.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -16,8 +17,13 @@ class SignInPage extends StatefulWidget {
 
 class _SignInPageState extends State<SignInPage> {
   final _formKey = GlobalKey<FormState>();
+  final _emailFieldKey = GlobalKey<FormFieldState<String>>();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  bool _hidePassword = true;
+  bool _pending = false;
+  bool _resetPending = false;
+  bool _showError = true;
 
   @override
   void dispose() {
@@ -26,142 +32,214 @@ class _SignInPageState extends State<SignInPage> {
     super.dispose();
   }
 
+  bool get _busy => _pending || context.read<AuthBloc>().state is AuthLoading;
+
+  void _clearError(String _) {
+    if (_showError) setState(() => _showError = false);
+  }
+
   void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-
+    if (_busy || !_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _pending = true;
+      _resetPending = false;
+      _showError = false;
+    });
     context.read<AuthBloc>().add(
-      SignInRequested(
-        email: _email.text.trim(),
-        password: _password.text,
-      ),
+      SignInRequested(email: _email.text.trim(), password: _password.text),
     );
   }
+
   void _requestPasswordReset() {
-  final email = _email.text.trim();
-
-  if (email.isEmpty || !email.contains('@')) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Enter your email address first.'),
-      ),
-    );
-    return;
+    if (_busy || !(_emailFieldKey.currentState?.validate() ?? false)) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _pending = true;
+      _resetPending = true;
+      _showError = false;
+    });
+    context.read<AuthBloc>().add(PasswordResetRequested(_email.text.trim()));
   }
 
-  context.read<AuthBloc>().add(PasswordResetRequested(email));
-}
+  void _requestVerification({required bool resend}) {
+    if (_busy) return;
+    setState(() {
+      _pending = true;
+      _showError = false;
+    });
+    final bloc = context.read<AuthBloc>();
+    if (resend) {
+      bloc.add(ResendVerificationEmailRequested());
+    } else {
+      bloc.add(CheckEmailVerificationRequested());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is! AuthLoading) {
+          setState(() {
+            _pending = false;
+            _resetPending = false;
+            _showError = state is AuthError;
+          });
+        }
+      },
       builder: (context, state) {
-        final loading = state is AuthLoading;
-
-        return Scaffold(
-          appBar: AppBar(title: const Text('TALA Trip')),
-          body: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Welcome back',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _email,
-                      decoration: const InputDecoration(labelText: 'Email'),
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      validator: (value) =>
-                          value == null || !value.trim().contains('@')
-                              ? 'Enter a valid email'
-                              : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _password,
-                      decoration: const InputDecoration(labelText: 'Password'),
-                      obscureText: true,
-                      autofillHints: const [AutofillHints.password],
-                      validator: (value) =>
-                          value == null || value.isEmpty
-                              ? 'Enter your password'
-                              : null,
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                        child: TextButton(
-                         onPressed: loading ? null : _requestPasswordReset,
-                         child: const Text('Forgot password?'),
-                          ),
-                          ),
-                    const SizedBox(height: 24),
-                   ElevatedButton(
-                   onPressed: loading ? null : _submit,
-                    child: Text(loading ? 'Signing in...' : 'Sign in'),
-                    ),
-                     TextButton(
-                     onPressed: loading
-                         ? null
-                         : () => context.push('/sign-up'),
-                         child: const Text('Create an account'),
-                          ),
-                    if (state is AuthError) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        state.message,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ],
-                    
-                    if (state is AuthPasswordResetEmailSent) ...[
-                     const SizedBox(height: 12),
-                    const Text(
-                       'If an account uses this email, check your inbox for a password reset link.',
-                         ),
-                          ],
-
-                    if (state is AuthVerificationRequired) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        state.message ??
-                            'Please verify ${state.user.email} using the link we sent you.',
-                      ),
-                      TextButton(
-                        onPressed: () => context.read<AuthBloc>().add(
-                              ResendVerificationEmailRequested(),
-                            ),
-                        child: const Text('Resend verification email'),
-                      ),
-                      OutlinedButton(
-                        onPressed: () => context.read<AuthBloc>().add(
-                              CheckEmailVerificationRequested(),
-                            ),
-                        child: const Text("I've verified my email"),
-                      ),
-                    ],
-                    if (state is AuthAuthenticated) ...[
-                      const SizedBox(height: 16),
-                      Text('Signed in as ${state.user.username}.'),
-                    ],
-                  ],
+        final loading = _pending || state is AuthLoading;
+        return AuthPageLayout(
+          title: 'Welcome back',
+          subtitle: 'Sign in to continue your journey.',
+          spacious: true,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 8),
+                TextFormField(
+                  key: _emailFieldKey,
+                  controller: _email,
+                  enabled: !loading,
+                  decoration: const InputDecoration(
+                    labelText: 'Email address',
+                    hintText: 'you@example.com',
+                    prefixIcon: Icon(Icons.mail_outline),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  autofillHints: const [AutofillHints.email],
+                  validator: AuthValidation.email,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onChanged: _clearError,
                 ),
-              ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _password,
+                  enabled: !loading,
+                  obscureText: _hidePassword,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      tooltip: _hidePassword
+                          ? 'Show password'
+                          : 'Hide password',
+                      onPressed: loading
+                          ? null
+                          : () =>
+                                setState(() => _hidePassword = !_hidePassword),
+                      icon: Icon(
+                        _hidePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                  ),
+                  autofillHints: const [AutofillHints.password],
+                  validator: AuthValidation.signInPassword,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onChanged: _clearError,
+                  onFieldSubmitted: (_) => _submit(),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: loading ? null : _requestPasswordReset,
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: loading ? null : _submit,
+                  child: Text(
+                    loading
+                        ? (_resetPending
+                              ? 'Sending reset link...'
+                              : 'Please wait...')
+                        : 'Sign in',
+                  ),
+                ),
+                if (_showError && state is AuthError) ...[
+                  const SizedBox(height: 16),
+                  _notice(state.message, error: true),
+                ],
+                if (state is AuthPasswordResetEmailSent) ...[
+                  const SizedBox(height: 16),
+                  _notice(
+                    'If an account uses this email, check your inbox for a password reset link.',
+                  ),
+                ],
+                if (state is AuthVerificationRequired) ...[
+                  const SizedBox(height: 20),
+                  _notice(
+                    state.message ??
+                        'Please verify ${state.user.email} using the link we sent you.',
+                  ),
+                  TextButton(
+                    onPressed: loading
+                        ? null
+                        : () => _requestVerification(resend: true),
+                    child: const Text('Resend verification email'),
+                  ),
+                  OutlinedButton(
+                    onPressed: loading
+                        ? null
+                        : () => _requestVerification(resend: false),
+                    child: const Text("I've verified my email"),
+                  ),
+                ],
+                if (state is AuthAuthenticated) ...[
+                  const SizedBox(height: 16),
+                  _notice('Signed in as ${state.user.username}.'),
+                ],
+                const SizedBox(height: 28),
+                const Divider(),
+                const SizedBox(height: 20),
+                const Text(
+                  'New to TALA TRIP',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AuthPageLayout.muted),
+                ),
+                TextButton(
+                  onPressed: loading
+                      ? null
+                      : () => context.push('/account-type'),
+                  child: const Text('Create an account'),
+                ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _notice(String message, {bool error = false}) {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: error ? const Color(0xFFFFF1F0) : const Color(0xFFEFF7FE),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          message,
+          style: TextStyle(
+            color: error ? const Color(0xFF9A2424) : AuthPageLayout.navy,
+            height: 1.5,
+          ),
+        ),
+      ),
     );
   }
 }

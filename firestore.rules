@@ -13,14 +13,51 @@ service cloud.firestore {
     function isHotelOwner() { return hasRole('hotelOwner'); }
     function isAdmin() { return hasRole('admin'); }
 
-    // Preserve the current account-type registration flow. Roles cannot be
-    // changed by profile updates and admin cannot be selected at signup.
+    // Canonical international format: '+' and at most 15 digits.
+    // This validates the stored shape, not mobile allocation or ownership.
+    // PhoneNumberHelper performs country-specific mobile validation in Flutter.
+    function validInternationalPhone(value) {
+      return value is string && value.matches('[+][1-9][0-9]{1,14}');
+    }
+
+    function validProfileEmail(value) {
+      return value is string
+        && value.matches('[^@\\s]+@[^@\\s.]+([.][^@\\s.]+)+')
+        && request.auth.token.get('email', null) is string
+        && value.lower() == request.auth.token.email.lower();
+    }
+
+    // Passwords and confirmation belong to Firebase Auth / the form only.
+    // The field allowlist below prevents storing them in a profile.
     match /users/{userId} {
+      function validProfile(data) {
+        let required = ['id', 'username', 'email', 'mobileNumber', 'role'];
+        let optional = ['profileImageUrl', 'lastUsernameChangeAt'];
+        let image = data.get('profileImageUrl', null);
+        let changedAt = data.get('lastUsernameChangeAt', null);
+        return data.keys().hasAll(required)
+          && data.keys().hasOnly(required.concat(optional))
+          && data.id == userId
+          && data.role in ['traveler', 'hotelOwner', 'admin']
+          && data.username is string && data.username.size() <= 120
+          && data.username.trim().size() > 0
+          && validProfileEmail(data.email)
+          && validInternationalPhone(data.mobileNumber)
+          && (image == null || image is string)
+          // UserModel serializes this as an ISO string, not a Timestamp.
+          // This shape check does not enforce a username-change cooldown.
+          && (changedAt == null || (changedAt is string
+            && changedAt.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}([0-9]{3})?Z?')));
+      }
+
+      // Registration writes the profile before sending verification email.
       allow read: if isSelf(userId);
       allow create: if isSelf(userId)
-        && request.resource.data.id == userId
-        && request.resource.data.role in ['traveler', 'hotelOwner'];
+        && validProfile(request.resource.data)
+        && request.resource.data.role in ['traveler', 'hotelOwner']
+        && request.resource.data.get('lastUsernameChangeAt', null) == null;
       allow update: if isSelf(userId)
+        && validProfile(request.resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'username', 'email', 'mobileNumber', 'profileImageUrl', 'lastUsernameChangeAt'
         ]);
@@ -264,7 +301,7 @@ service cloud.firestore {
           && b.travelerName is string && b.travelerName.size() > 0 && b.travelerName.size() <= 120
           && b.travelerName == profile.username.trim()
           && b.travelerPhone is string && b.travelerPhone == profile.mobileNumber.trim()
-          && b.travelerPhone.matches('(0[1-9][0-9]{7,8}|\\+213[1-9][0-9]{7,8})')
+          && validInternationalPhone(b.travelerPhone)
           && b.hotelName == hotel.name.trim() && b.hotelAddress == hotel.address.trim() && b.hotelPhone == hotel.phoneNumber.trim()
           && b.capacityAtBooking == room.capacity && b.capacityAtBooking is int
           && b.guests is int && b.guests >= 1 && b.guests <= room.capacity
@@ -371,3 +408,4 @@ service cloud.firestore {
     }
   }
 }
+
