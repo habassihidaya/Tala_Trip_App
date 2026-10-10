@@ -18,9 +18,7 @@ abstract class BookingDataSource {
 
   // Create the booking transactionally, or return the existing
   // booking for the same submission.
-  Future<BookingModel> submitBooking(
-    BookingSubmission submission,
-  );
+  Future<BookingModel> submitBooking(BookingSubmission submission);
 
   // Return the existing booking if found.
   //
@@ -28,22 +26,16 @@ abstract class BookingDataSource {
   // is permanently closed and cannot create a booking.
   //
   // Connection errors must throw, never return null.
-  Future<BookingModel?> resolveSubmission(
-    BookingSubmission submission,
-  );
+  Future<BookingModel?> resolveSubmission(BookingSubmission submission);
 
   Future<List<BookingModel>> getMyBookings();
 
   Future<List<BookingModel>> getOwnerBookings();
 
-  Future<BookingModel> getBookingById(
-    String bookingId,
-  );
+  Future<BookingModel> getBookingById(String bookingId);
 
   // Update the booking and reserve its nights atomically.
-  Future<BookingModel> acceptBooking(
-    String bookingId,
-  );
+  Future<BookingModel> acceptBooking(String bookingId);
 
   Future<BookingModel> rejectBooking({
     required String bookingId,
@@ -52,7 +44,5 @@ abstract class BookingDataSource {
 
   // Release reserved nights atomically when cancelling
   // a confirmed booking.
-  Future<BookingModel> cancelBooking(
-    String bookingId,
-  );
+  Future<BookingModel> cancelBooking(String bookingId);
 }

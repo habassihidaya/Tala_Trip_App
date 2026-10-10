@@ -35,12 +35,10 @@ class SignIn {
     required String email,
     required String password,
   }) {
-    return _repository.signIn(
-      email: email,
-      password: password,
-    );
+    return _repository.signIn(email: email, password: password);
   }
 }
+
 class SendVerificationEmail {
   SendVerificationEmail(this._repository);
 
@@ -78,10 +76,11 @@ class SendPasswordResetEmail {
 
   final AuthRepository _repository;
 
-  Future<Either<Failure , Unit>> call(String email) {
+  Future<Either<Failure, Unit>> call(String email) {
     return _repository.sendPasswordResetEmail(email);
   }
 }
+
 class WatchAuthState {
   final AuthRepository _repository;
 

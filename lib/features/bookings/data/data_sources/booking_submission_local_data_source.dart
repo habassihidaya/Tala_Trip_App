@@ -6,17 +6,13 @@ abstract class BookingSubmissionLocalDataSource {
   // Saving the same submission again is allowed.
   // Replacing the same request ID with different details is not.
   // Throw if persistence fails.
-  Future<void> saveSubmission(
-    BookingSubmissionModel submission,
-  );
+  Future<void> saveSubmission(BookingSubmissionModel submission);
 
   // Load unresolved submissions belonging to this account only.
   //
   // Return an empty list when there are none.
   // Throw if saved data cannot be read; do not silently discard it.
-  Future<List<BookingSubmissionModel>> getSubmissions(
-    String travelerId,
-  );
+  Future<List<BookingSubmissionModel>> getSubmissions(String travelerId);
 
   // Remove the local record after the remote outcome is known:
   // either a booking exists or the request ID is permanently closed.

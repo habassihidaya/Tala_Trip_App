@@ -10,9 +10,7 @@ sealed class BookingSubmissionResolution extends Equatable {
 class BookingSubmissionFound extends BookingSubmissionResolution {
   final BookingEntity booking;
 
-  const BookingSubmissionFound({
-    required this.booking,
-  });
+  const BookingSubmissionFound({required this.booking});
 
   @override
   List<Object?> get props => [booking];
@@ -23,9 +21,7 @@ class BookingSubmissionFound extends BookingSubmissionResolution {
 class BookingSubmissionClosed extends BookingSubmissionResolution {
   final String requestId;
 
-  const BookingSubmissionClosed({
-    required this.requestId,
-  });
+  const BookingSubmissionClosed({required this.requestId});
 
   @override
   List<Object?> get props => [requestId];

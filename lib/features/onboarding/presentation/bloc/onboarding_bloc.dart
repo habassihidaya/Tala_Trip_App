@@ -8,10 +8,8 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
   final CheckOnboardingCompleted _checkOnboardingCompleted;
   final CompleteOnboarding _completeOnboarding;
 
-    OnboardingBloc(
-    this._checkOnboardingCompleted,
-    this._completeOnboarding,
-  ) : super(const OnboardingInitial()) {
+  OnboardingBloc(this._checkOnboardingCompleted, this._completeOnboarding)
+    : super(const OnboardingInitial()) {
     on<OnboardingCheckRequested>(_onCheckRequested);
     on<OnboardingCompletionRequested>(_onCompletionRequested);
   }
@@ -21,8 +19,7 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     Emitter<OnboardingState> emit,
   ) async {
     // Allow the initial check or a retry after a failed check.
-    if (state is! OnboardingInitial &&
-        state is! OnboardingCheckFailure) {
+    if (state is! OnboardingInitial && state is! OnboardingCheckFailure) {
       return;
     }
 
@@ -34,9 +31,7 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       (failure) => emit(OnboardingCheckFailure(failure.message)),
       (completed) {
         emit(
-          completed
-              ? const OnboardingCompleted()
-              : const OnboardingRequired(),
+          completed ? const OnboardingCompleted() : const OnboardingRequired(),
         );
       },
     );
@@ -47,8 +42,7 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
     Emitter<OnboardingState> emit,
   ) async {
     // Allow completion or a retry after saving failed.
-    if (state is! OnboardingRequired &&
-        state is! OnboardingSaveFailure) {
+    if (state is! OnboardingRequired && state is! OnboardingSaveFailure) {
       return;
     }
 

@@ -3,13 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../../domain/entities/booking_entity.dart';
 import 'booking_list_event.dart';
 
-enum BookingListStatus {
-  initial,
-  loading,
-  loaded,
-  actionLoading,
-  failure,
-}
+enum BookingListStatus { initial, loading, loaded, actionLoading, failure }
 
 class BookingListState extends Equatable {
   final BookingListAudience audience;
@@ -30,8 +24,7 @@ class BookingListState extends Equatable {
       status == BookingListStatus.loading ||
       status == BookingListStatus.actionLoading;
 
-  bool get isEmpty =>
-      status == BookingListStatus.loaded && bookings.isEmpty;
+  bool get isEmpty => status == BookingListStatus.loaded && bookings.isEmpty;
 
   bool isActionLoading(String bookingId) {
     return status == BookingListStatus.actionLoading &&

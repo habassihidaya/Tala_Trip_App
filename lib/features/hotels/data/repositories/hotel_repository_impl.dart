@@ -44,9 +44,7 @@ class HotelRepositoryImpl implements HotelRepository {
     try {
       final hotels = await _dataSource.getMyHotels();
 
-      return Right(
-        hotels.map((hotel) => hotel.toEntity()).toList(),
-      );
+      return Right(hotels.map((hotel) => hotel.toEntity()).toList());
     } catch (error) {
       return Left(mapExceptionToFailure(error));
     }
@@ -64,13 +62,9 @@ class HotelRepositoryImpl implements HotelRepository {
   }
 
   @override
-  Future<Either<Failure, Unit>> updateHotelDraft(
-    HotelEntity hotel,
-  ) async {
+  Future<Either<Failure, Unit>> updateHotelDraft(HotelEntity hotel) async {
     try {
-      await _dataSource.updateHotelDraft(
-        HotelModel.fromEntity(hotel),
-      );
+      await _dataSource.updateHotelDraft(HotelModel.fromEntity(hotel));
 
       return Right(unit);
     } catch (error) {
@@ -105,9 +99,7 @@ class HotelRepositoryImpl implements HotelRepository {
     try {
       final hotels = await _dataSource.getPendingHotels();
 
-      return Right(
-        hotels.map((hotel) => hotel.toEntity()).toList(),
-      );
+      return Right(hotels.map((hotel) => hotel.toEntity()).toList());
     } catch (error) {
       return Left(mapExceptionToFailure(error));
     }
@@ -125,10 +117,7 @@ class HotelRepositoryImpl implements HotelRepository {
   }
 
   @override
-  Future<Either<Failure, Unit>> rejectHotel(
-    String id,
-    String reason,
-  ) async {
+  Future<Either<Failure, Unit>> rejectHotel(String id, String reason) async {
     try {
       await _dataSource.rejectHotel(id, reason);
 
@@ -143,9 +132,7 @@ class HotelRepositoryImpl implements HotelRepository {
     try {
       final hotels = await _dataSource.getApprovedHotels();
 
-      return Right(
-        hotels.map((hotel) => hotel.toEntity()).toList(),
-      );
+      return Right(hotels.map((hotel) => hotel.toEntity()).toList());
     } catch (error) {
       return Left(mapExceptionToFailure(error));
     }

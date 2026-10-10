@@ -46,9 +46,7 @@ class BookingFormState extends Equatable {
     List<BookingSubmission> unresolvedSubmissions = const [],
     this.booking,
     this.message,
-  }) : unresolvedSubmissions = List.unmodifiable(
-         unresolvedSubmissions,
-       );
+  }) : unresolvedSubmissions = List.unmodifiable(unresolvedSubmissions);
 
   bool get isBusy =>
       status == BookingFormStatus.loading ||
@@ -56,8 +54,7 @@ class BookingFormState extends Equatable {
       status == BookingFormStatus.submitting ||
       status == BookingFormStatus.recovering;
 
-  bool get hasUnresolvedSubmission =>
-      unresolvedSubmissions.isNotEmpty;
+  bool get hasUnresolvedSubmission => unresolvedSubmissions.isNotEmpty;
 
   bool get canEdit =>
       recoveryChecked &&
@@ -71,8 +68,7 @@ class BookingFormState extends Equatable {
       availability != null &&
       availability!.hasAvailability;
 
-  bool get canRecover =>
-      hasUnresolvedSubmission && !isBusy;
+  bool get canRecover => hasUnresolvedSubmission && !isBusy;
 
   BookingFormState copyWith({
     BookingFormStatus? status,
@@ -92,9 +88,7 @@ class BookingFormState extends Equatable {
   }) {
     return BookingFormState(
       status: status ?? this.status,
-      checkInDate: clearCheckInDate
-          ? null
-          : checkInDate ?? this.checkInDate,
+      checkInDate: clearCheckInDate ? null : checkInDate ?? this.checkInDate,
       checkOutDate: clearCheckOutDate
           ? null
           : checkOutDate ?? this.checkOutDate,

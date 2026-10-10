@@ -13,10 +13,7 @@ class BookingOutcomeUnknownFailure extends Failure {
   }) : super(message);
 
   @override
-  List<Object?> get props => [
-    message,
-    operationId,
-  ];
+  List<Object?> get props => [message, operationId];
 }
 
 class BookingLocalStorageFailure extends Failure {

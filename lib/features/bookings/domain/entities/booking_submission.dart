@@ -14,9 +14,5 @@ class BookingSubmission extends Equatable {
   });
 
   @override
-  List<Object?> get props => [
-    requestId,
-    travelerId,
-    draft,
-  ];
+  List<Object?> get props => [requestId, travelerId, draft];
 }

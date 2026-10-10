@@ -105,10 +105,7 @@ class RejectHotel {
 
   RejectHotel(this._repository);
 
-  Future<Either<Failure, Unit>> call(
-    String id,
-    String reason,
-  ) {
+  Future<Either<Failure, Unit>> call(String id, String reason) {
     return _repository.rejectHotel(id, reason);
   }
 }

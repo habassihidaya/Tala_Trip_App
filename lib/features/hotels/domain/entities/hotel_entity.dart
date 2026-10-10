@@ -39,20 +39,20 @@ class HotelEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        ownerId,
-        name,
-        description,
-        wilaya,
-        address,
-        phoneNumber,
-        images,
-        mapUrl,
-        status,
-        createdAt,
-        updatedAt,
-        reviewedAt,
-        reviewedBy,
-        rejectionReason,
-      ];
+    id,
+    ownerId,
+    name,
+    description,
+    wilaya,
+    address,
+    phoneNumber,
+    images,
+    mapUrl,
+    status,
+    createdAt,
+    updatedAt,
+    reviewedAt,
+    reviewedBy,
+    rejectionReason,
+  ];
 }

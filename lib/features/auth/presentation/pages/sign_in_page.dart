@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tala_trip_app/core/widgets/gradient_button.dart';
 
 import '../../domain/validation/auth_validation.dart';
 import '../blocs/auth_bloc.dart';
@@ -158,7 +159,7 @@ class _SignInPageState extends State<SignInPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton(
+                GradientButton(
                   onPressed: loading ? null : _submit,
                   child: Text(
                     loading
@@ -171,6 +172,15 @@ class _SignInPageState extends State<SignInPage> {
                 if (_showError && state is AuthError) ...[
                   const SizedBox(height: 16),
                   _notice(state.message, error: true),
+                ],
+                if (state is AuthProfileRequired) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: loading
+                        ? null
+                        : () => context.push('/account-type'),
+                    child: const Text('Finish account setup'),
+                  ),
                 ],
                 if (state is AuthPasswordResetEmailSent) ...[
                   const SizedBox(height: 16),
@@ -204,10 +214,10 @@ class _SignInPageState extends State<SignInPage> {
                 const SizedBox(height: 28),
                 const Divider(),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'New to TALA TRIP',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AuthPageLayout.muted),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 TextButton(
                   onPressed: loading
@@ -224,18 +234,24 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Widget _notice(String message, {bool error = false}) {
+    final theme = Theme.of(context);
+
     return Semantics(
       liveRegion: true,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: error ? const Color(0xFFFFF1F0) : const Color(0xFFEFF7FE),
+          color: error
+              ? theme.colorScheme.errorContainer
+              : theme.colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           message,
           style: TextStyle(
-            color: error ? const Color(0xFF9A2424) : AuthPageLayout.navy,
+            color: error
+                ? theme.colorScheme.onErrorContainer
+                : theme.colorScheme.onPrimaryContainer,
             height: 1.5,
           ),
         ),

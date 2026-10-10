@@ -1,14 +1,15 @@
-import 'package:go_router/go_router.dart';
-import 'package:tala_trip_app/core/di/injection_container.dart';
-import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
-import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_event.dart';
-import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:tala_trip_app/core/di/injection_container.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_event.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_state.dart';
+import 'package:tala_trip_app/features/favorites/presentation/widgets/traveler_hotel_card.dart';
+import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
+import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_event.dart';
+import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_state.dart';
 
 class TravelerHomePage extends StatelessWidget {
   const TravelerHomePage({super.key});
@@ -20,9 +21,9 @@ class TravelerHomePage extends StatelessWidget {
         title: const Text('TALA Trip'),
         automaticallyImplyLeading: false,
         actions: [
-            IconButton(
+          IconButton(
             tooltip: 'My bookings',
-            onPressed: () => context.push('/traveler/bookings'),
+            onPressed: () => context.go('/traveler/bookings'),
             icon: const Icon(Icons.calendar_month_outlined),
           ),
           BlocConsumer<AuthBloc, AuthState>(
@@ -32,7 +33,7 @@ class TravelerHomePage extends StatelessWidget {
                 (previous is! AuthAuthenticated ||
                     previous.signOutError != current.signOutError),
             listener: (context, state) {
-              if (state is AuthAuthenticated) {
+              if (state is AuthAuthenticated && state.signOutError != null) {
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text(state.signOutError!)));
@@ -42,13 +43,16 @@ class TravelerHomePage extends StatelessWidget {
               final signingOut =
                   state is AuthAuthenticated && state.isSigningOut;
 
+              final canSignOut =
+                  state is AuthAuthenticated && !state.isSigningOut;
+
               return IconButton(
                 tooltip: 'Sign out',
-                onPressed: signingOut
-                    ? null
-                    : () {
+                onPressed: canSignOut
+                    ? () {
                         context.read<AuthBloc>().add(SignOutRequested());
-                      },
+                      }
+                    : null,
                 icon: signingOut
                     ? const SizedBox(
                         width: 20,
@@ -61,9 +65,11 @@ class TravelerHomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: BlocProvider<HotelBloc>(
-        create: (_) => getIt<HotelBloc>()..add(GetApprovedHotelsEvent()),
-        child: const _ApprovedHotels(),
+      body: SafeArea(
+        child: BlocProvider<HotelBloc>(
+          create: (_) => getIt<HotelBloc>()..add(GetApprovedHotelsEvent()),
+          child: const _ApprovedHotels(),
+        ),
       ),
     );
   }
@@ -71,85 +77,83 @@ class TravelerHomePage extends StatelessWidget {
 
 class _ApprovedHotels extends StatelessWidget {
   const _ApprovedHotels();
+
   @override
-  Widget build(BuildContext context) => BlocBuilder<HotelBloc, HotelState>(
-    builder: (context, state) {
-      void reload() => context.read<HotelBloc>().add(GetApprovedHotelsEvent());
-      if (state is HotelInitialState || state is HotelLoadingState) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (state is HotelErrorState || state is HotelsEmptyState) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  state is HotelErrorState
-                      ? state.message
-                      : 'No approved hotels yet. Check back soon.',
-                ),
-                TextButton(onPressed: reload, child: const Text('Refresh')),
-              ],
+  Widget build(BuildContext context) {
+    return BlocBuilder<HotelBloc, HotelState>(
+      builder: (context, state) {
+        void reload() {
+          context.read<HotelBloc>().add(GetApprovedHotelsEvent());
+        }
+
+        if (state is HotelInitialState || state is HotelLoadingState) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (state is HotelErrorState || state is HotelsEmptyState) {
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    state is HotelErrorState
+                        ? state.message
+                        : 'No approved hotels yet. Check back soon.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: reload,
+                    child: Text(state is HotelErrorState ? 'Retry' : 'Refresh'),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      }
-      if (state is! HotelsLoadedState) return const SizedBox.shrink();
-      return Column(
-        children: [
-          ListTile(
-            title: const Text('Discover hotels in Algeria'),
-            trailing: IconButton(
-              tooltip: 'Refresh',
-              onPressed: reload,
-              icon: const Icon(Icons.refresh),
+          );
+        }
+
+        if (state is! HotelsLoadedState) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          children: [
+            ListTile(
+              title: const Text('Discover hotels in Algeria'),
+              trailing: IconButton(
+                tooltip: 'Refresh',
+                onPressed: reload,
+                icon: const Icon(Icons.refresh),
+              ),
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.hotels.length,
-              itemBuilder: (context, index) {
-                final hotel = state.hotels[index];
-                return Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: state.hotels.length,
+                itemBuilder: (context, index) {
+                  final hotel = state.hotels[index];
+
+                  return TravelerHotelCard(
+                    key: ValueKey(hotel.id),
+                    hotel: hotel,
                     onTap: () async {
                       await context.push(
                         '/traveler/hotels/${Uri.encodeComponent(hotel.id)}',
                       );
-                      if (context.mounted) reload();
+
+                      if (context.mounted) {
+                        reload();
+                      }
                     },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (hotel.images.isNotEmpty)
-                          Image.network(
-                            hotel.images.first,
-                            height: 180,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, error, stackTrace) =>
-                                const SizedBox(
-                                  height: 100,
-                                  child: Icon(Icons.broken_image_outlined),
-                                ),
-                          ),
-                        ListTile(
-                          title: Text(hotel.name),
-                          subtitle: Text(hotel.wilaya),
-                          trailing: const Icon(Icons.chevron_right),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      );
-    },
-  );
+          ],
+        );
+      },
+    );
+  }
 }

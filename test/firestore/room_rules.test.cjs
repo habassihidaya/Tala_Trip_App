@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {initializeTestEnvironment, assertFails, assertSucceeds} = require('@firebase/rules-unit-testing');
-const {doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp, Timestamp} = require('firebase/firestore');
+const {doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp, Timestamp, runTransaction, writeBatch} = require('firebase/firestore');
 let env;
 const room = {capacity: 1, priceInCentimes: 1500000, totalRooms: 5};
 const hotel = (id, status = 'draft', rooms = {}) => ({
@@ -14,7 +14,7 @@ const hotel = (id, status = 'draft', rooms = {}) => ({
   createdAt: Timestamp.fromMillis(1000), updatedAt: Timestamp.fromMillis(1000),
   reviewedAt: null, reviewedBy: null, rejectionReason: null, rooms,
 });
-const db = (uid, verified = true) => env.authenticatedContext(uid, {email_verified: verified}).firestore();
+const db = (uid, verified = true) => env.authenticatedContext(uid, {email_verified: verified, email: uid + '@example.com'}).firestore();
 const change = (database, id, fields) => updateDoc(doc(database, 'hotels', id), {...fields, updatedAt: serverTimestamp()});
 
 before(async () => {
@@ -146,4 +146,58 @@ test('legacy invalid metadata does not block room maintenance or rejection', asy
 test('unchanged approved room save and normalized international phone succeed', async () => {
   await assertSucceeds(change(db('owner'), 'approved', {rooms: {single: room}}));
   await assertSucceeds(change(db('owner'), 'draft', {phoneNumber: '+213550123456', mapUrl: 'https://www.google.com/maps?q=Alger'}));
+});
+
+// Registration can resume profile creation before email verification.
+test('missing profile setup can resume; repeated setup preserves the saved role', async () => {
+  const database = db('recovering', false);
+  const reference = doc(database, 'users', 'recovering');
+  const profile = {id: 'recovering', username: 'Original', email: 'recovering@example.com', mobileNumber: '+33612345678', role: 'traveler'};
+  async function finish(details) {
+    return runTransaction(database, async transaction => {
+      const snapshot = await transaction.get(reference);
+      if (snapshot.exists()) return snapshot.data();
+      transaction.set(reference, details);
+      return details;
+    });
+  }
+  await assertSucceeds(finish(profile));
+  const recovered = await assertSucceeds(finish({...profile, username: 'Changed', role: 'hotelOwner'}));
+  assert.equal(recovered.role, 'traveler');
+  assert.equal(recovered.username, 'Original');
+  await assertFails(updateDoc(reference, {role: 'hotelOwner'}));
+});
+
+test('profile setup cannot create another account profile or mismatched email', async () => {
+  const profile = {id: 'recovering', username: 'Traveler', email: 'recovering@example.com', mobileNumber: '+447911123456', role: 'traveler'};
+  await assertFails(setDoc(doc(db('other'), 'users', 'recovering'), profile));
+  await assertFails(setDoc(doc(db('recovering'), 'users', 'recovering'), {...profile, email: 'other@example.com'}));
+});
+
+test('international traveler phone can be snapshotted in a booking', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'users', 'traveler'), {
+      id: 'traveler', username: 'Traveler', email: 'traveler@example.com', mobileNumber: '+33612345678', role: 'traveler',
+    });
+  });
+  const database = db('traveler');
+  const requestId = 'a'.repeat(32);
+  const start = Math.floor(Date.now() / 86400000) * 86400000 + 3 * 86400000;
+  const booking = {
+    id: requestId, requestId, travelerId: 'traveler', ownerId: 'owner', hotelId: 'approved',
+    travelerName: 'Traveler', travelerPhone: '+33612345678', hotelName: 'TALA Hotel',
+    hotelAddress: 'Alger centre', hotelPhone: '0550123456', roomType: 'single', capacityAtBooking: 1, guests: 1,
+    checkInDate: Timestamp.fromMillis(start), checkOutDate: Timestamp.fromMillis(start + 86400000),
+    checkInStartsAt: Timestamp.fromMillis(start - 3600000),
+    nightlyPriceInCentimes: room.priceInCentimes, totalPriceInCentimes: room.priceInCentimes,
+    currency: 'DZD', status: 'pending', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    decidedAt: null, decidedBy: null, rejectionReason: null, cancelledAt: null, cancelledBy: null,
+  };
+  const batch = writeBatch(database);
+  batch.set(doc(database, 'bookings', requestId), booking);
+  batch.set(doc(database, 'users', 'traveler', 'bookingRequests', requestId), {
+    requestId, travelerId: 'traveler', bookingId: requestId, status: 'recorded', createdAt: serverTimestamp(),
+  });
+  await assertSucceeds(batch.commit());
+  assert.equal((await getDoc(doc(database, 'bookings', requestId))).data().travelerPhone, '+33612345678');
 });

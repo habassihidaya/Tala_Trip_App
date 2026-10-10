@@ -19,12 +19,12 @@ class FirebaseBookingDataSource implements BookingDataSource {
   final FirebaseBookingActions _actions;
 
   FirebaseBookingDataSource({
-  required this._reader,
-  required this._availability,
-  required this._submitter,
-  required this._recovery,
-  required this._actions,
-});
+    required this._reader,
+    required this._availability,
+    required this._submitter,
+    required this._recovery,
+    required this._actions,
+  });
 
   @override
   String get currentUserId => _reader.currentUserId;
@@ -43,16 +43,12 @@ class FirebaseBookingDataSource implements BookingDataSource {
   }
 
   @override
-  Future<BookingModel> submitBooking(
-    BookingSubmission submission,
-  ) {
+  Future<BookingModel> submitBooking(BookingSubmission submission) {
     return _submitter.submitBooking(submission);
   }
 
   @override
-  Future<BookingModel?> resolveSubmission(
-    BookingSubmission submission,
-  ) {
+  Future<BookingModel?> resolveSubmission(BookingSubmission submission) {
     return _recovery.resolveSubmission(submission);
   }
 
@@ -81,10 +77,7 @@ class FirebaseBookingDataSource implements BookingDataSource {
     required String bookingId,
     required String reason,
   }) {
-    return _actions.rejectBooking(
-      bookingId: bookingId,
-      reason: reason,
-    );
+    return _actions.rejectBooking(bookingId: bookingId, reason: reason);
   }
 
   @override

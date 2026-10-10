@@ -1,5 +1,1 @@
-enum UserRole {
-  traveler,
-  hotelOwner,
-  admin, 
-}
+enum UserRole { traveler, hotelOwner, admin }

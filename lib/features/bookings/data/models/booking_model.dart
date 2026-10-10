@@ -8,15 +8,11 @@ import '../../domain/entities/booking_status.dart';
 class BookingModel {
   final BookingEntity _booking;
 
-  const BookingModel.fromEntity(BookingEntity booking)
-      : _booking = booking;
+  const BookingModel.fromEntity(BookingEntity booking) : _booking = booking;
 
   BookingEntity toEntity() => _booking;
 
-  factory BookingModel.fromJson(
-    String documentId,
-    Map<String, dynamic> json,
-  ) {
+  factory BookingModel.fromJson(String documentId, Map<String, dynamic> json) {
     return BookingModel.fromEntity(
       BookingEntity(
         id: documentId,
@@ -29,23 +25,17 @@ class BookingModel {
         hotelName: json['hotelName'] as String,
         hotelAddress: json['hotelAddress'] as String,
         hotelPhone: json['hotelPhone'] as String,
-        roomType: RoomType.values.byName(
-          json['roomType'] as String,
-        ),
+        roomType: RoomType.values.byName(json['roomType'] as String),
         capacityAtBooking: json['capacityAtBooking'] as int,
         guests: json['guests'] as int,
         dates: BookingDates(
           checkInDate: _readDate(json['checkInDate']),
           checkOutDate: _readDate(json['checkOutDate']),
         ),
-        nightlyPriceInCentimes:
-            json['nightlyPriceInCentimes'] as int,
-        totalPriceInCentimes:
-            json['totalPriceInCentimes'] as int,
+        nightlyPriceInCentimes: json['nightlyPriceInCentimes'] as int,
+        totalPriceInCentimes: json['totalPriceInCentimes'] as int,
         currency: json['currency'] as String,
-        status: BookingStatus.values.byName(
-          json['status'] as String,
-        ),
+        status: BookingStatus.values.byName(json['status'] as String),
         createdAt: _readDate(json['createdAt']),
         updatedAt: _readDate(json['updatedAt']),
         checkInStartsAt: _readDate(json['checkInStartsAt']),
@@ -75,21 +65,15 @@ class BookingModel {
       'roomType': booking.roomType.name,
       'capacityAtBooking': booking.capacityAtBooking,
       'guests': booking.guests,
-      'checkInDate': Timestamp.fromDate(
-        booking.dates.checkInDate,
-      ),
-      'checkOutDate': Timestamp.fromDate(
-        booking.dates.checkOutDate,
-      ),
+      'checkInDate': Timestamp.fromDate(booking.dates.checkInDate),
+      'checkOutDate': Timestamp.fromDate(booking.dates.checkOutDate),
       'nightlyPriceInCentimes': booking.nightlyPriceInCentimes,
       'totalPriceInCentimes': booking.totalPriceInCentimes,
       'currency': booking.currency,
       'status': booking.status.name,
       'createdAt': Timestamp.fromDate(booking.createdAt),
       'updatedAt': Timestamp.fromDate(booking.updatedAt),
-      'checkInStartsAt': Timestamp.fromDate(
-        booking.checkInStartsAt,
-      ),
+      'checkInStartsAt': Timestamp.fromDate(booking.checkInStartsAt),
       'decidedAt': _writeOptionalDate(booking.decidedAt),
       'decidedBy': booking.decidedBy,
       'rejectionReason': booking.rejectionReason,

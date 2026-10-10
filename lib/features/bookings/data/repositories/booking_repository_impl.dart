@@ -122,27 +122,20 @@ class BookingRepositoryImpl implements BookingRepository {
       await _tryRemoveLocal(submission);
 
       if (model == null) {
-        return BookingSubmissionClosed(
-          requestId: submission.requestId,
-        );
+        return BookingSubmissionClosed(requestId: submission.requestId);
       }
 
-      return BookingSubmissionFound(
-        booking: model.toEntity(),
-      );
+      return BookingSubmissionFound(booking: model.toEntity());
     });
   }
 
   @override
-  Future<Either<Failure, List<BookingSubmission>>>
-      getUnresolvedSubmissions() {
+  Future<Either<Failure, List<BookingSubmission>>> getUnresolvedSubmissions() {
     return _serialize(() async {
       final travelerId = _remote.currentUserId;
       final models = await _readLocal(travelerId);
 
-      return models
-          .map((model) => model.toEntity())
-          .toList(growable: false);
+      return models.map((model) => model.toEntity()).toList(growable: false);
     });
   }
 
@@ -151,9 +144,7 @@ class BookingRepositoryImpl implements BookingRepository {
     return _execute(() async {
       final models = await _remote.getMyBookings();
 
-      return models
-          .map((model) => model.toEntity())
-          .toList(growable: false);
+      return models.map((model) => model.toEntity()).toList(growable: false);
     });
   }
 
@@ -162,16 +153,12 @@ class BookingRepositoryImpl implements BookingRepository {
     return _execute(() async {
       final models = await _remote.getOwnerBookings();
 
-      return models
-          .map((model) => model.toEntity())
-          .toList(growable: false);
+      return models.map((model) => model.toEntity()).toList(growable: false);
     });
   }
 
   @override
-  Future<Either<Failure, BookingEntity>> getBookingById(
-    String bookingId,
-  ) {
+  Future<Either<Failure, BookingEntity>> getBookingById(String bookingId) {
     return _execute(() async {
       final model = await _remote.getBookingById(bookingId);
       return model.toEntity();
@@ -179,9 +166,7 @@ class BookingRepositoryImpl implements BookingRepository {
   }
 
   @override
-  Future<Either<Failure, BookingEntity>> acceptBooking(
-    String bookingId,
-  ) {
+  Future<Either<Failure, BookingEntity>> acceptBooking(String bookingId) {
     return _execute(() async {
       final model = await _remote.acceptBooking(bookingId);
       return model.toEntity();
@@ -204,9 +189,7 @@ class BookingRepositoryImpl implements BookingRepository {
   }
 
   @override
-  Future<Either<Failure, BookingEntity>> cancelBooking(
-    String bookingId,
-  ) {
+  Future<Either<Failure, BookingEntity>> cancelBooking(String bookingId) {
     return _execute(() async {
       final model = await _remote.cancelBooking(bookingId);
       return model.toEntity();
@@ -228,9 +211,7 @@ class BookingRepositoryImpl implements BookingRepository {
     ).join();
   }
 
-  Future<List<BookingSubmissionModel>> _readLocal(
-    String travelerId,
-  ) async {
+  Future<List<BookingSubmissionModel>> _readLocal(String travelerId) async {
     try {
       return await _local.getSubmissions(travelerId);
     } catch (_) {
@@ -241,9 +222,7 @@ class BookingRepositoryImpl implements BookingRepository {
     }
   }
 
-  Future<void> _tryRemoveLocal(
-    BookingSubmission submission,
-  ) async {
+  Future<void> _tryRemoveLocal(BookingSubmission submission) async {
     try {
       await _local.removeSubmission(
         travelerId: submission.travelerId,
@@ -255,24 +234,16 @@ class BookingRepositoryImpl implements BookingRepository {
     }
   }
 
-  Future<Either<Failure, T>> _execute<T>(
-    Future<T> Function() action,
-  ) async {
+  Future<Either<Failure, T>> _execute<T>(Future<T> Function() action) async {
     try {
       return Right<Failure, T>(await action());
     } catch (error) {
-      return Left<Failure, T>(
-        mapExceptionToFailure(error),
-      );
+      return Left<Failure, T>(mapExceptionToFailure(error));
     }
   }
 
-  Future<Either<Failure, T>> _serialize<T>(
-    Future<T> Function() action,
-  ) {
-    final result = _submissionQueue.then(
-      (_) => _execute<T>(action),
-    );
+  Future<Either<Failure, T>> _serialize<T>(Future<T> Function() action) {
+    final result = _submissionQueue.then((_) => _execute<T>(action));
 
     _submissionQueue = result.then<void>((_) {});
 

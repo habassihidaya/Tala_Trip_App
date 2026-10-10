@@ -9,8 +9,7 @@ import '../../domain/usecases/booking_usecases.dart';
 import 'booking_list_event.dart';
 import 'booking_list_state.dart';
 
-class BookingListBloc
-    extends Bloc<BookingListEvent, BookingListState> {
+class BookingListBloc extends Bloc<BookingListEvent, BookingListState> {
   final BookingListAudience _audience;
 
   final GetMyBookings _getMyBookings;
@@ -29,9 +28,7 @@ class BookingListBloc
     required this._acceptBooking,
     required this._rejectBooking,
     required this._cancelBooking,
-  }) : super(
-         BookingListState(audience: _audience),
-       ) {
+  }) : super(BookingListState(audience: _audience)) {
     on<BookingListStarted>(_onStarted);
     on<BookingListRefreshRequested>(_onRefresh);
     on<BookingAcceptRequested>(_onAccept);
@@ -55,9 +52,7 @@ class BookingListBloc
     return _load(emit);
   }
 
-  Future<void> _load(
-    Emitter<BookingListState> emit,
-  ) async {
+  Future<void> _load(Emitter<BookingListState> emit) async {
     if (_loading) return;
 
     _loading = true;
@@ -129,10 +124,8 @@ class BookingListBloc
 
     return _runAction(
       bookingId: event.bookingId,
-      action: () => _rejectBooking(
-        bookingId: event.bookingId,
-        reason: event.reason,
-      ),
+      action: () =>
+          _rejectBooking(bookingId: event.bookingId, reason: event.reason),
       successMessage: 'Booking request rejected.',
       emit: emit,
     );
@@ -192,11 +185,11 @@ class BookingListBloc
         );
       },
       (updatedBooking) {
-        final updatedBookings = state.bookings.map((booking) {
-          return booking.id == updatedBooking.id
-              ? updatedBooking
-              : booking;
-        }).toList(growable: false);
+        final updatedBookings = state.bookings
+            .map((booking) {
+              return booking.id == updatedBooking.id ? updatedBooking : booking;
+            })
+            .toList(growable: false);
 
         emit(
           state.copyWith(

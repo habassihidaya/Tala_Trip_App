@@ -12,18 +12,16 @@ class HotelPhotoRepositoryImpl implements HotelPhotoRepository {
   HotelPhotoRepositoryImpl(this._dataSource);
 
   @override
-  Future<Either<Failure, String>> uploadPhoto(
-    String filePath,
-  ) async {
+  Future<Either<Failure, String>> uploadPhoto(String filePath) async {
     try {
       final url = await _dataSource.uploadPhoto(filePath);
 
       return Right(url);
     } catch (error, stackTrace) {
-  debugPrint('Hotel photo upload failed: $error');
-  debugPrintStack(stackTrace: stackTrace);
+      debugPrint('Hotel photo upload failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
 
-  return Left(mapExceptionToFailure(error));
-}
+      return Left(mapExceptionToFailure(error));
+    }
   }
 }

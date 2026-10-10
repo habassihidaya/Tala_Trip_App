@@ -1,10 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-enum NetworkStatus {
-  available,
-  offline,
-  unknown,
-}
+enum NetworkStatus { available, offline, unknown }
 
 abstract class NetworkInfo {
   Future<NetworkStatus> checkStatus();
@@ -18,9 +14,9 @@ class ConnectivityNetworkInfo implements NetworkInfo {
   @override
   Future<NetworkStatus> checkStatus() async {
     try {
-      final connections = await _connectivity
-          .checkConnectivity()
-          .timeout(const Duration(seconds: 5));
+      final connections = await _connectivity.checkConnectivity().timeout(
+        const Duration(seconds: 5),
+      );
 
       if (connections.isEmpty) {
         return NetworkStatus.unknown;
@@ -30,9 +26,7 @@ class ConnectivityNetworkInfo implements NetworkInfo {
         (connection) => connection != ConnectivityResult.none,
       );
 
-      return hasNetwork
-          ? NetworkStatus.available
-          : NetworkStatus.offline;
+      return hasNetwork ? NetworkStatus.available : NetworkStatus.offline;
     } catch (_) {
       return NetworkStatus.unknown;
     }

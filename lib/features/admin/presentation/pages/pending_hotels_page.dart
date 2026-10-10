@@ -48,11 +48,8 @@ class _PendingHotelsView extends StatelessWidget {
       ),
       body: BlocBuilder<HotelBloc, HotelState>(
         builder: (context, state) {
-          if (state is HotelInitialState ||
-              state is HotelLoadingState) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+          if (state is HotelInitialState || state is HotelLoadingState) {
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (state is HotelErrorState) {
@@ -62,10 +59,7 @@ class _PendingHotelsView extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(state.message, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () => _reload(context),

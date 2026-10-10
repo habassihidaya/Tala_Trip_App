@@ -116,8 +116,7 @@ class HotelModel {
       'status': status.name,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
-      'reviewedAt':
-          reviewedAt == null ? null : Timestamp.fromDate(reviewedAt!),
+      'reviewedAt': reviewedAt == null ? null : Timestamp.fromDate(reviewedAt!),
       'reviewedBy': reviewedBy,
       'rejectionReason': rejectionReason,
     };

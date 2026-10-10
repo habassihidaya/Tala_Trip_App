@@ -15,8 +15,7 @@ import '../../domain/validation/booking_validation.dart';
 import 'booking_form_event.dart';
 import 'booking_form_state.dart';
 
-class BookingFormBloc
-    extends Bloc<BookingFormEvent, BookingFormState> {
+class BookingFormBloc extends Bloc<BookingFormEvent, BookingFormState> {
   final String _hotelId;
   final RoomType _roomType;
 
@@ -29,7 +28,7 @@ class BookingFormBloc
   final NetworkInfo _networkInfo;
   final AlgeriaTime _algeriaTime;
 
-      BookingFormBloc({
+  BookingFormBloc({
     required this._hotelId,
     required this._roomType,
     required this._checkAvailability,
@@ -51,8 +50,7 @@ class BookingFormBloc
     BookingFormStarted event,
     Emitter<BookingFormState> emit,
   ) async {
-    if (state.isBusy ||
-        state.status == BookingFormStatus.submitted) {
+    if (state.isBusy || state.status == BookingFormStatus.submitted) {
       return;
     }
 
@@ -88,11 +86,7 @@ class BookingFormBloc
         );
 
         if (submissions.isEmpty) {
-          emit(
-            nextState.copyWith(
-              status: BookingFormStatus.editing,
-            ),
-          );
+          emit(nextState.copyWith(status: BookingFormStatus.editing));
           return;
         }
 
@@ -100,8 +94,7 @@ class BookingFormBloc
         final draft = previous.draft;
 
         final belongsToThisRoom =
-            draft.hotelId == _hotelId &&
-            draft.roomType == _roomType;
+            draft.hotelId == _hotelId && draft.roomType == _roomType;
 
         if (belongsToThisRoom) {
           nextState = nextState.copyWith(
@@ -181,50 +174,49 @@ class BookingFormBloc
 
     if (_stopped(emit)) return;
 
-    result.fold<void>(
-      (failure) => _showFailure(emit, failure.message),
-      (availability) {
-        if (availability.hotelId != _hotelId ||
-            availability.room.type != _roomType ||
-            availability.dates != dates) {
-          _showFailure(
-            emit,
-            'The availability result does not match this stay. '
-            'Please check again.',
-          );
-          return;
-        }
-
-        final draft = _draftFrom(availability);
-        final draftError = BookingValidation.validateDraft(
-          draft: draft,
-          room: availability.room,
-          todayInAlgeria: _today(),
+    result.fold<void>((failure) => _showFailure(emit, failure.message), (
+      availability,
+    ) {
+      if (availability.hotelId != _hotelId ||
+          availability.room.type != _roomType ||
+          availability.dates != dates) {
+        _showFailure(
+          emit,
+          'The availability result does not match this stay. '
+          'Please check again.',
         );
+        return;
+      }
 
-        if (draftError != null) {
-          _showFailure(emit, draftError);
-          return;
-        }
+      final draft = _draftFrom(availability);
+      final draftError = BookingValidation.validateDraft(
+        draft: draft,
+        room: availability.room,
+        todayInAlgeria: _today(),
+      );
 
-        if (!availability.hasAvailability) {
-          _showFailure(
-            emit,
-            'No rooms of this type are available '
-            'for the selected dates.',
-          );
-          return;
-        }
+      if (draftError != null) {
+        _showFailure(emit, draftError);
+        return;
+      }
 
-        emit(
-          state.copyWith(
-            status: BookingFormStatus.ready,
-            availability: availability,
-            clearMessage: true,
-          ),
+      if (!availability.hasAvailability) {
+        _showFailure(
+          emit,
+          'No rooms of this type are available '
+          'for the selected dates.',
         );
-      },
-    );
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          status: BookingFormStatus.ready,
+          availability: availability,
+          clearMessage: true,
+        ),
+      );
+    });
   }
 
   Future<void> _onSubmitted(
@@ -250,10 +242,7 @@ class BookingFormBloc
 
     // Block repeated taps before the network check begins.
     emit(
-      state.copyWith(
-        status: BookingFormStatus.submitting,
-        clearMessage: true,
-      ),
+      state.copyWith(status: BookingFormStatus.submitting, clearMessage: true),
     );
 
     final network = await _networkInfo.checkStatus();
@@ -285,17 +274,14 @@ class BookingFormBloc
             status: BookingFormStatus.failure,
             recoveryChecked: false,
             clearAvailability: true,
-            message: '${failure.message} '
+            message:
+                '${failure.message} '
                 'Reload the booking form to check saved requests.',
           ),
         );
       },
       (submission) async {
-        emit(
-          state.copyWith(
-            unresolvedSubmissions: [submission],
-          ),
-        );
+        emit(state.copyWith(unresolvedSubmissions: [submission]));
 
         final result = await _submitBooking(submission);
 
@@ -303,15 +289,15 @@ class BookingFormBloc
 
         result.fold<void>(
           (failure) {
-            final unknown =
-                failure is BookingOutcomeUnknownFailure;
+            final unknown = failure is BookingOutcomeUnknownFailure;
 
             emit(
               state.copyWith(
                 status: unknown
                     ? BookingFormStatus.uncertain
                     : BookingFormStatus.failure,
-                message: '${failure.message} '
+                message:
+                    '${failure.message} '
                     'Check this request before submitting another.',
               ),
             );
@@ -340,10 +326,7 @@ class BookingFormBloc
     final submission = state.unresolvedSubmissions.first;
 
     emit(
-      state.copyWith(
-        status: BookingFormStatus.recovering,
-        clearMessage: true,
-      ),
+      state.copyWith(status: BookingFormStatus.recovering, clearMessage: true),
     );
 
     final network = await _networkInfo.checkStatus();
@@ -381,9 +364,7 @@ class BookingFormBloc
       },
       (resolution) {
         final remaining = state.unresolvedSubmissions
-            .where(
-              (item) => item.requestId != submission.requestId,
-            )
+            .where((item) => item.requestId != submission.requestId)
             .toList(growable: false);
 
         switch (resolution) {
@@ -450,8 +431,7 @@ class BookingFormBloc
       roomType: _roomType,
       dates: availability.dates,
       guests: state.guests,
-      reviewedNightlyPriceInCentimes:
-          availability.room.priceInCentimes,
+      reviewedNightlyPriceInCentimes: availability.room.priceInCentimes,
     );
   }
 
@@ -469,10 +449,7 @@ class BookingFormBloc
         'No booking request was sent. Please try again.';
   }
 
-  void _showFailure(
-    Emitter<BookingFormState> emit,
-    String message,
-  ) {
+  void _showFailure(Emitter<BookingFormState> emit, String message) {
     emit(
       state.copyWith(
         status: BookingFormStatus.failure,

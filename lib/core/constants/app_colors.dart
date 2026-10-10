@@ -4,28 +4,42 @@ class AppColors {
   AppColors._();
 
   // Brand palette.
-  static const primary = Color(0xFF4972A1);
-  static const skyBlue = Color(0xFFA8D2EE);
-  static const lightBlue = Color(0xFFC9E4FC);
-  static const warmBeige = Color(0xFFD7B9B0);
-  static const mutedMauve = Color(0xFFAA8285);
-
-  // Surfaces.
-  static const background = Color(0xFFF8FAFC);
-  static const surface = Color(0xFFFFFFFF);
+  static const primary = Color(0xFF0F8F90);
+  static const primaryDark = Color(0xFF005B5D);
+  static const primaryLight = Color(0xFFB2E0E1);
+  static const lightGray = Color(0xFFE0E0E0);
 
   // Text.
-  static const textPrimary = Color(0xFF213B57);
-  static const textSecondary = Color(0xFF526174);
+  static const textPrimary = Color(0xFF000000);
+  static const textSecondary = Color(0xFF555555);
 
-  // Emphasized action: Get started.
-  static const accentAction = Color(0xFF213B57);
+  // Text and icons displayed on primary buttons.
+  static const onPrimary = Color(0xFFFFFFFF);
+
+  // Surfaces.
+  static const background = Color(0xFFF4F8F8);
+  static const surface = Color(0xFFFFFEFE);
+  static const border = Color(0xFFD6D6D6);
+
+  // Emphasized action.
+  static const accentAction = primary;
 
   // Supporting colors.
-  static const border = Color(0xFFDCE4EC);
-  static const error = Color(0xFFB3261E);
-  static const success = Color(0xFF26734D);
+  static const subtleBorder = Color(0xFFE3DFDF);
+  static const disabledSurface = Color(0xFFDCE4EE);
 
-  // Text and icons on dark backgrounds.
-  static const onPrimary = Color(0xFFFFFFFF);
+  // Error colors.
+  static const error = Color(0xFFB3261E);
+  static const errorSurface = Color(0xFFFFF1F0);
+  static const errorText = Color(0xFF9A2424);
+
+  // Informational colors.
+  static const infoSurface = Color(0xFFEFF7FE);
+
+  // Hotel-owner colors.
+  static const ownerAccent = Color(0xFF78585C);
+  static const ownerSurface = Color(0xFFF7EFEC);
+
+  // Success color.
+  static const success = Color(0xFF26734D);
 }

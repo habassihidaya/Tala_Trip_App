@@ -28,10 +28,7 @@ abstract class HotelRepository {
 
   Future<Either<Failure, Unit>> approveHotel(String id);
 
-  Future<Either<Failure, Unit>> rejectHotel(
-    String id,
-    String reason,
-  );
+  Future<Either<Failure, Unit>> rejectHotel(String id, String reason);
 
   Future<Either<Failure, List<HotelEntity>>> getApprovedHotels();
 }

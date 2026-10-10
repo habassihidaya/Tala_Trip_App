@@ -16,11 +16,7 @@ class FirebaseBookingAvailability {
   final FirebaseFirestore _firestore;
   final AlgeriaTime _algeriaTime;
 
-  FirebaseBookingAvailability(
-    this._auth,
-    this._firestore,
-    this._algeriaTime,
-  );
+  FirebaseBookingAvailability(this._auth, this._firestore, this._algeriaTime);
 
   Future<BookingAvailabilityModel> checkAvailability({
     required String hotelId,
@@ -40,114 +36,99 @@ class FirebaseBookingAvailability {
     }
 
     if (hotelId.trim().isEmpty || hotelId.contains('/')) {
-      throw const BookingOperationException(
-        'Please select a valid hotel.',
-      );
+      throw const BookingOperationException('Please select a valid hotel.');
     }
 
     final dateError = BookingValidation.validateDates(
       checkInDate: dates.checkInDate,
       checkOutDate: dates.checkOutDate,
-      todayInAlgeria: _algeriaTime.today(
-        now: DateTime.now(),
-      ),
+      todayInAlgeria: _algeriaTime.today(now: DateTime.now()),
     );
 
     if (dateError != null) {
       throw BookingOperationException(dateError);
     }
 
-    final hotelReference = _firestore
-        .collection('hotels')
-        .doc(hotelId);
+    final hotelReference = _firestore.collection('hotels').doc(hotelId);
 
     final calendarReference = hotelReference
         .collection('roomAvailability')
         .doc(roomType.name);
 
-    return _firestore.runTransaction<BookingAvailabilityModel>(
-      (transaction) async {
-        final hotelSnapshot = await transaction.get(hotelReference);
-        final calendarSnapshot = await transaction.get(
-          calendarReference,
+    return _firestore.runTransaction<BookingAvailabilityModel>((
+      transaction,
+    ) async {
+      final hotelSnapshot = await transaction.get(hotelReference);
+      final calendarSnapshot = await transaction.get(calendarReference);
+
+      if (_auth.currentUser?.uid != user.uid) {
+        throw const UnauthenticatedException();
+      }
+
+      final hotel = hotelSnapshot.data();
+
+      if (hotel == null) {
+        throw const BookingOperationException('This hotel could not be found.');
+      }
+
+      if (hotel['status'] != 'approved') {
+        throw const BookingOperationException(
+          'This hotel is not currently bookable.',
         );
+      }
 
-        if (_auth.currentUser?.uid != user.uid) {
-          throw const UnauthenticatedException();
-        }
+      final rawRooms = hotel['rooms'];
 
-        final hotel = hotelSnapshot.data();
+      if (rawRooms is! Map) {
+        throw const BookingOperationException(
+          'This hotel has no room categories available.',
+        );
+      }
 
-        if (hotel == null) {
-          throw const BookingOperationException(
-            'This hotel could not be found.',
-          );
-        }
+      final rawRoom = rawRooms[roomType.name];
 
-        if (hotel['status'] != 'approved') {
-          throw const BookingOperationException(
-            'This hotel is not currently bookable.',
-          );
-        }
+      if (rawRoom == null) {
+        throw const BookingOperationException(
+          'This room category is no longer available.',
+        );
+      }
 
-        final rawRooms = hotel['rooms'];
+      if (rawRoom is! Map) {
+        throw const FormatException('The room category has an invalid format.');
+      }
 
-        if (rawRooms is! Map) {
-          throw const BookingOperationException(
-            'This hotel has no room categories available.',
-          );
-        }
+      final room = RoomModel.fromJson(
+        roomType.name,
+        Map<String, dynamic>.from(rawRoom),
+      ).toEntity();
 
-        final rawRoom = rawRooms[roomType.name];
+      // A successful server read of a missing calendar means
+      // this category has no calendar yet.
+      //
+      // A network or permission error must never become
+      // an empty calendar.
+      final Map<String, dynamic> calendar;
 
-        if (rawRoom == null) {
-          throw const BookingOperationException(
-            'This room category is no longer available.',
-          );
-        }
+      if (!calendarSnapshot.exists) {
+        calendar = {'counts': <String, dynamic>{}};
+      } else {
+        final data = calendarSnapshot.data();
 
-        if (rawRoom is! Map) {
+        if (data == null) {
           throw const FormatException(
-            'The room category has an invalid format.',
+            'The availability calendar could not be read.',
           );
         }
 
-        final room = RoomModel.fromJson(
-          roomType.name,
-          Map<String, dynamic>.from(rawRoom),
-        ).toEntity();
+        calendar = data;
+      }
 
-        // A successful server read of a missing calendar means
-        // this category has no calendar yet.
-        //
-        // A network or permission error must never become
-        // an empty calendar.
-        final Map<String, dynamic> calendar;
-
-        if (!calendarSnapshot.exists) {
-          calendar = {
-            'counts': <String, dynamic>{},
-          };
-        } else {
-          final data = calendarSnapshot.data();
-
-          if (data == null) {
-            throw const FormatException(
-              'The availability calendar could not be read.',
-            );
-          }
-
-          calendar = data;
-        }
-
-        return BookingAvailabilityModel.fromCalendar(
-          hotelId: hotelId,
-          room: room,
-          dates: dates,
-          calendar: calendar,
-        );
-      },
-      maxAttempts: 1,
-    );
+      return BookingAvailabilityModel.fromCalendar(
+        hotelId: hotelId,
+        room: room,
+        dates: dates,
+        calendar: calendar,
+      );
+    }, maxAttempts: 1);
   }
 }

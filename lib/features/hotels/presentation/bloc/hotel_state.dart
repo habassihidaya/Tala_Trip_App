@@ -26,22 +26,13 @@ class HotelDraftCreatedState extends HotelState {
   HotelDraftCreatedState({required this.hotel});
 }
 
-enum HotelAction {
-  updated,
-  deleted,
-  submitted,
-  approved,
-  rejected,
-}
+enum HotelAction { updated, deleted, submitted, approved, rejected }
 
 class HotelActionSuccessState extends HotelState {
   final String hotelId;
   final HotelAction action;
 
-  HotelActionSuccessState({
-    required this.hotelId,
-    required this.action,
-  });
+  HotelActionSuccessState({required this.hotelId, required this.action});
 }
 
 class HotelErrorState extends HotelState {
@@ -49,5 +40,3 @@ class HotelErrorState extends HotelState {
 
   HotelErrorState({required this.message});
 }
-
-

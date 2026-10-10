@@ -7,24 +7,19 @@ import '../../domain/entities/booking_submission.dart';
 class BookingSubmissionModel {
   final BookingSubmission _submission;
 
-  const BookingSubmissionModel.fromEntity(
-    BookingSubmission submission,
-  ) : _submission = submission;
+  const BookingSubmissionModel.fromEntity(BookingSubmission submission)
+    : _submission = submission;
 
   BookingSubmission toEntity() => _submission;
 
-  factory BookingSubmissionModel.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory BookingSubmissionModel.fromJson(Map<String, dynamic> json) {
     if (json['schemaVersion'] != 1) {
       throw const FormatException(
         'Unsupported saved booking submission format.',
       );
     }
 
-    final draftJson = Map<String, dynamic>.from(
-      json['draft'] as Map,
-    );
+    final draftJson = Map<String, dynamic>.from(json['draft'] as Map);
 
     return BookingSubmissionModel.fromEntity(
       BookingSubmission(
@@ -32,9 +27,7 @@ class BookingSubmissionModel {
         travelerId: json['travelerId'] as String,
         draft: BookingDraft(
           hotelId: draftJson['hotelId'] as String,
-          roomType: RoomType.values.byName(
-            draftJson['roomType'] as String,
-          ),
+          roomType: RoomType.values.byName(draftJson['roomType'] as String),
           dates: BookingDates(
             checkInDate: _readDate(draftJson['checkInDate']),
             checkOutDate: _readDate(draftJson['checkOutDate']),
@@ -60,17 +53,14 @@ class BookingSubmissionModel {
         'checkInDate': draft.dates.checkInDate.toIso8601String(),
         'checkOutDate': draft.dates.checkOutDate.toIso8601String(),
         'guests': draft.guests,
-        'reviewedNightlyPriceInCentimes':
-            draft.reviewedNightlyPriceInCentimes,
+        'reviewedNightlyPriceInCentimes': draft.reviewedNightlyPriceInCentimes,
       },
     };
   }
 
   static DateTime _readDate(Object? value) {
     if (value is! String) {
-      throw const FormatException(
-        'A saved submission date must be text.',
-      );
+      throw const FormatException('A saved submission date must be text.');
     }
 
     final date = DateTime.tryParse(value);

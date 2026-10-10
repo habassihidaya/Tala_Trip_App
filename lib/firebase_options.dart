@@ -62,7 +62,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1082908221478',
     projectId: 'tala-trip-app',
     storageBucket: 'tala-trip-app.firebasestorage.app',
-    iosClientId: '1082908221478-h3rt84pn5tnnqc7cpkv6rqsth38qa8r3.apps.googleusercontent.com',
+    iosClientId:
+        '1082908221478-h3rt84pn5tnnqc7cpkv6rqsth38qa8r3.apps.googleusercontent.com',
     iosBundleId: 'com.example.talaTripApp',
   );
   static const FirebaseOptions macos = FirebaseOptions(
@@ -71,7 +72,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1082908221478',
     projectId: 'tala-trip-app',
     storageBucket: 'tala-trip-app.firebasestorage.app',
-    iosClientId: '1082908221478-h3rt84pn5tnnqc7cpkv6rqsth38qa8r3.apps.googleusercontent.com',
+    iosClientId:
+        '1082908221478-h3rt84pn5tnnqc7cpkv6rqsth38qa8r3.apps.googleusercontent.com',
     iosBundleId: 'com.example.talaTripApp',
   );
 

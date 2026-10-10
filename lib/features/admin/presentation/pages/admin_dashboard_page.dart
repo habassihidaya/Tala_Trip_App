@@ -13,8 +13,7 @@ class AdminDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        final authenticated =
-            state is AuthAuthenticated ? state : null;
+        final authenticated = state is AuthAuthenticated ? state : null;
 
         final signingOut = authenticated?.isSigningOut ?? false;
         final error = authenticated?.signOutError;
@@ -28,13 +27,9 @@ class AdminDashboardPage extends StatelessWidget {
                 onPressed: authenticated == null || signingOut
                     ? null
                     : () {
-                        context.read<AuthBloc>().add(
-                          SignOutRequested(),
-                        );
+                        context.read<AuthBloc>().add(SignOutRequested());
                       },
-                child: Text(
-                  signingOut ? 'Signing out...' : 'Sign out',
-                ),
+                child: Text(signingOut ? 'Signing out...' : 'Sign out'),
               ),
             ],
           ),
@@ -45,26 +40,22 @@ class AdminDashboardPage extends StatelessWidget {
               children: [
                 const Text(
                   'Admin dashboard',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Review hotel-owner applications and '
-                  'hotels submitted for publication.',
+                  'Review hotels submitted by hotel owners before publication.',
                 ),
-                 const SizedBox(height: 24),
-FilledButton.icon(
-  onPressed: authenticated == null || signingOut
-      ? null
-      : () {
-          context.push('/admin/hotels');
-        },
-  icon: const Icon(Icons.fact_check_outlined),
-  label: const Text('Review pending hotels'),
-),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: authenticated == null || signingOut
+                      ? null
+                      : () {
+                          context.push('/admin/hotels');
+                        },
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('Review pending hotels'),
+                ),
                 if (signingOut) ...[
                   const SizedBox(height: 16),
                   const LinearProgressIndicator(),

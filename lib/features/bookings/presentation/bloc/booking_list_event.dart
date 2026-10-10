@@ -1,9 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum BookingListAudience {
-  traveler,
-  owner,
-}
+enum BookingListAudience { traveler, owner }
 
 sealed class BookingListEvent extends Equatable {
   const BookingListEvent();
@@ -33,16 +30,10 @@ class BookingRejectRequested extends BookingListEvent {
   final String bookingId;
   final String reason;
 
-  const BookingRejectRequested({
-    required this.bookingId,
-    required this.reason,
-  });
+  const BookingRejectRequested({required this.bookingId, required this.reason});
 
   @override
-  List<Object?> get props => [
-    bookingId,
-    reason,
-  ];
+  List<Object?> get props => [bookingId, reason];
 }
 
 class BookingCancelRequested extends BookingListEvent {

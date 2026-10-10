@@ -6,9 +6,8 @@ import '../../domain/entities/booking_dates.dart';
 class BookingAvailabilityModel {
   final BookingAvailability _availability;
 
-  const BookingAvailabilityModel.fromEntity(
-    BookingAvailability availability,
-  ) : _availability = availability;
+  const BookingAvailabilityModel.fromEntity(BookingAvailability availability)
+    : _availability = availability;
 
   BookingAvailability toEntity() => _availability;
 
@@ -19,9 +18,7 @@ class BookingAvailabilityModel {
     required Map<String, dynamic> calendar,
   }) {
     if (room.validate() != null) {
-      throw const FormatException(
-        'The room category has invalid details.',
-      );
+      throw const FormatException('The room category has invalid details.');
     }
 
     final rawCounts = calendar['counts'];
@@ -37,19 +34,14 @@ class BookingAvailabilityModel {
     var availableRooms = room.totalRooms;
 
     for (var offset = 0; offset < dates.nights; offset++) {
-      final night = dates.checkInDate.add(
-        Duration(days: offset),
-      );
+      final night = dates.checkInDate.add(Duration(days: offset));
 
       final key = dayKey(night);
 
       // A missing date means no confirmed reservations that night.
-      final Object? reserved =
-          counts.containsKey(key) ? counts[key] : 0;
+      final Object? reserved = counts.containsKey(key) ? counts[key] : 0;
 
-      if (reserved is! int ||
-          reserved < 0 ||
-          reserved > room.totalRooms) {
+      if (reserved is! int || reserved < 0 || reserved > room.totalRooms) {
         throw const FormatException(
           'The availability calendar contains an invalid room count.',
         );

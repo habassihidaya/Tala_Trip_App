@@ -1,8 +1,11 @@
 import 'package:fpdart/fpdart.dart';
+
 import 'package:tala_trip_app/core/errors/failures.dart';
+import 'package:tala_trip_app/features/auth/domain/entities/user_entity.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 
 abstract class AuthEvent {}
+
 class SignUpRequested extends AuthEvent {
   final String username;
   final String email;
@@ -23,23 +26,31 @@ class SignInRequested extends AuthEvent {
   final String email;
   final String password;
 
-  SignInRequested({
-    required this.email,
-    required this.password});
+  SignInRequested({required this.email, required this.password});
 }
 
 class ResendVerificationEmailRequested extends AuthEvent {}
 
 class CheckEmailVerificationRequested extends AuthEvent {}
+
 class PasswordResetRequested extends AuthEvent {
-  PasswordResetRequested(this.email);
-
   final String email;
-}
-class AuthSessionCheckRequested extends AuthEvent {}
-class SignOutRequested extends AuthEvent {}
-class AuthSessionChanged extends AuthEvent {
-  AuthSessionChanged(this.result);
 
+  PasswordResetRequested(this.email);
+}
+
+class AuthSessionCheckRequested extends AuthEvent {}
+
+class SignOutRequested extends AuthEvent {}
+
+class AuthSessionChanged extends AuthEvent {
   final Either<Failure, String?> result;
+
+  AuthSessionChanged(this.result);
+}
+
+class AuthUserProfileUpdated extends AuthEvent {
+  final UserEntity user;
+
+  AuthUserProfileUpdated({required this.user});
 }

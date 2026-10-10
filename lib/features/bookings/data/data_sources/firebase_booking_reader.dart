@@ -71,9 +71,7 @@ class FirebaseBookingReader {
     final data = snapshot.data();
 
     if (data == null) {
-      throw const BookingOperationException(
-        'This booking could not be found.',
-      );
+      throw const BookingOperationException('This booking could not be found.');
     }
 
     final model = BookingModel.fromJson(snapshot.id, data);
@@ -88,10 +86,7 @@ class FirebaseBookingReader {
     return model;
   }
 
-  Future<void> _requireRole(
-    String userId,
-    String expectedRole,
-  ) async {
+  Future<void> _requireRole(String userId, String expectedRole) async {
     final user = _auth.currentUser;
 
     if (user == null || user.uid != userId) {
@@ -134,19 +129,12 @@ class FirebaseBookingReader {
     QuerySnapshot<Map<String, dynamic>> snapshot,
   ) {
     final bookings = snapshot.docs
-        .map(
-          (document) => BookingModel.fromJson(
-            document.id,
-            document.data(),
-          ),
-        )
+        .map((document) => BookingModel.fromJson(document.id, document.data()))
         .toList();
 
     bookings.sort(
-      (first, second) => second
-          .toEntity()
-          .createdAt
-          .compareTo(first.toEntity().createdAt),
+      (first, second) =>
+          second.toEntity().createdAt.compareTo(first.toEntity().createdAt),
     );
 
     return bookings;

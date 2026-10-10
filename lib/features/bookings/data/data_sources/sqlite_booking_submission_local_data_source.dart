@@ -35,9 +35,7 @@ class SqliteBookingSubmissionLocalDataSource
   }
 
   @override
-  Future<void> saveSubmission(
-    BookingSubmissionModel submission,
-  ) async {
+  Future<void> saveSubmission(BookingSubmissionModel submission) async {
     final entity = submission.toEntity();
 
     _requireNonEmpty(entity.travelerId);
@@ -49,10 +47,7 @@ class SqliteBookingSubmissionLocalDataSource
       final existing = await transaction.query(
         'booking_submissions',
         where: 'traveler_id = ? AND request_id = ?',
-        whereArgs: [
-          entity.travelerId,
-          entity.requestId,
-        ],
+        whereArgs: [entity.travelerId, entity.requestId],
       );
 
       if (existing.isNotEmpty) {
@@ -68,21 +63,16 @@ class SqliteBookingSubmissionLocalDataSource
         return;
       }
 
-      await transaction.insert(
-        'booking_submissions',
-        {
-          'traveler_id': entity.travelerId,
-          'request_id': entity.requestId,
-          'payload': payload,
-        },
-      );
+      await transaction.insert('booking_submissions', {
+        'traveler_id': entity.travelerId,
+        'request_id': entity.requestId,
+        'payload': payload,
+      });
     });
   }
 
   @override
-  Future<List<BookingSubmissionModel>> getSubmissions(
-    String travelerId,
-  ) async {
+  Future<List<BookingSubmissionModel>> getSubmissions(String travelerId) async {
     _requireNonEmpty(travelerId);
 
     final rows = await _database.query(
@@ -106,16 +96,11 @@ class SqliteBookingSubmissionLocalDataSource
     await _database.delete(
       'booking_submissions',
       where: 'traveler_id = ? AND request_id = ?',
-      whereArgs: [
-        travelerId,
-        requestId,
-      ],
+      whereArgs: [travelerId, requestId],
     );
   }
 
-  static BookingSubmissionModel _readRow(
-    Map<String, Object?> row,
-  ) {
+  static BookingSubmissionModel _readRow(Map<String, Object?> row) {
     final payload = row['payload'];
 
     if (payload is! String) {

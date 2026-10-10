@@ -33,9 +33,7 @@ class PrepareBookingSubmission {
 
   PrepareBookingSubmission(this._repository);
 
-  Future<Either<Failure, BookingSubmission>> call(
-    BookingDraft draft,
-  ) {
+  Future<Either<Failure, BookingSubmission>> call(BookingDraft draft) {
     return _repository.prepareSubmission(draft);
   }
 }
@@ -45,9 +43,7 @@ class SubmitBooking {
 
   SubmitBooking(this._repository);
 
-  Future<Either<Failure, BookingEntity>> call(
-    BookingSubmission submission,
-  ) {
+  Future<Either<Failure, BookingEntity>> call(BookingSubmission submission) {
     return _repository.submitBooking(submission);
   }
 }
@@ -99,9 +95,7 @@ class GetBookingById {
 
   GetBookingById(this._repository);
 
-  Future<Either<Failure, BookingEntity>> call(
-    String bookingId,
-  ) {
+  Future<Either<Failure, BookingEntity>> call(String bookingId) {
     return _repository.getBookingById(bookingId);
   }
 }
@@ -111,9 +105,7 @@ class AcceptBooking {
 
   AcceptBooking(this._repository);
 
-  Future<Either<Failure, BookingEntity>> call(
-    String bookingId,
-  ) {
+  Future<Either<Failure, BookingEntity>> call(String bookingId) {
     return _repository.acceptBooking(bookingId);
   }
 }
@@ -140,9 +132,7 @@ class RejectBooking {
     if (trimmedReason.length > 1000) {
       return Future.value(
         const Left<Failure, BookingEntity>(
-          ServerFailure(
-            'The rejection reason cannot exceed 1,000 characters.',
-          ),
+          ServerFailure('The rejection reason cannot exceed 1,000 characters.'),
         ),
       );
     }
@@ -159,9 +149,7 @@ class CancelBooking {
 
   CancelBooking(this._repository);
 
-  Future<Either<Failure, BookingEntity>> call(
-    String bookingId,
-  ) {
+  Future<Either<Failure, BookingEntity>> call(String bookingId) {
     return _repository.cancelBooking(bookingId);
   }
 }

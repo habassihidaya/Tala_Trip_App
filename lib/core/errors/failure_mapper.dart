@@ -37,8 +37,15 @@ Failure mapExceptionToFailure(Object error) {
   }
 
   if (error is UserProfileNotFoundException) {
-    return const ServerFailure(
-      'Your account profile could not be found. Please contact support.',
+    return const IncompleteProfileFailure(
+      'Your account setup is incomplete. Finish setup using the same email '
+      'and password.',
+    );
+  }
+  if (error is UserProfileSetupPendingException) {
+    return const IncompleteProfileFailure(
+      'Your account exists, but we could not confirm that your profile was saved. '
+      'Check your connection and retry setup with the same email and password.',
     );
   }
   if (error is HotelNotFoundException) {

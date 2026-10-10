@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 import 'package:tala_trip_app/features/auth/domain/validation/auth_validation.dart';
 
@@ -258,8 +259,8 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   decoration: BoxDecoration(
                     color: widget.role == UserRole.hotelOwner
-                        ? const Color(0xFFF7EFEC)
-                        : const Color(0xFFEFF7FE),
+                        ? AppColors.ownerSurface
+                        : AppColors.infoSurface,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
@@ -268,7 +269,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         widget.role == UserRole.hotelOwner
                             ? Icons.apartment_outlined
                             : Icons.luggage_outlined,
-                        color: AuthPageLayout.blue,
+                        color: AppColors.primary,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -445,9 +446,9 @@ class _SignUpPageState extends State<SignUpPage> {
                   onFieldSubmitted: (_) => _submit(),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   "We'll send you an email to verify your account.",
-                  style: TextStyle(color: AuthPageLayout.muted, height: 1.5),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -466,13 +467,19 @@ class _SignUpPageState extends State<SignUpPage> {
                             Text('Creating account...'),
                           ],
                         )
-                      : const Text('Create account'),
+                      : Text(
+                          state is AuthProfileRequired
+                              ? 'Finish account setup'
+                              : 'Create account',
+                        ),
                 ),
                 if (_showServerError && state is AuthError) ...[
                   const SizedBox(height: 16),
                   Text(
                     state.message,
-                    style: TextStyle(color: const Color(0xFF9A2424)),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 24),
@@ -482,9 +489,9 @@ class _SignUpPageState extends State<SignUpPage> {
                   alignment: WrapAlignment.center,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Already have an account?',
-                      style: TextStyle(color: AuthPageLayout.muted),
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     TextButton(
                       onPressed: loading ? null : () => context.go('/sign-in'),

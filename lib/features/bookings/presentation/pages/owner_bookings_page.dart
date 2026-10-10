@@ -252,7 +252,8 @@ class _OwnerBookingsView extends StatelessWidget {
       );
     }
 
-    final busy = state.isActionLoading(booking.id);
+    final busy = state.isBusy;
+    final processingThisBooking = state.isActionLoading(booking.id);
 
     return Wrap(
       spacing: 12,
@@ -260,7 +261,7 @@ class _OwnerBookingsView extends StatelessWidget {
         FilledButton.icon(
           onPressed: busy ? null : () => _acceptBooking(context, booking),
           icon: const Icon(Icons.check),
-          label: Text(busy ? 'Processing…' : 'Accept'),
+          label: Text(processingThisBooking ? 'Processing…' : 'Accept'),
         ),
         OutlinedButton.icon(
           onPressed: busy ? null : () => _rejectBooking(context, booking),

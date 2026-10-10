@@ -131,7 +131,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                           errorBuilder:
                                               (context, error, stackTrace) {
                                                 return const ColoredBox(
-                                                  color: AppColors.lightBlue,
+                                                  color: AppColors.primaryLight,
                                                   child: Center(
                                                     child: Icon(
                                                       Icons.landscape_outlined,

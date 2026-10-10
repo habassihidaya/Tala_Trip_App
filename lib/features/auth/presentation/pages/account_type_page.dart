@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/user_role.dart';
 import '../widgets/auth_page_layout.dart';
 
@@ -42,8 +43,8 @@ class _AccountTypePageState extends State<AccountTypePage> {
                   title: 'Traveler',
                   description: 'Find hotels and request your next stay.',
                   icon: Icons.luggage_outlined,
-                  accent: AuthPageLayout.blue,
-                  tint: const Color(0xFFEFF7FE),
+                  accent: AppColors.primary,
+                  tint: AppColors.infoSurface,
                 ),
                 const SizedBox(height: 16),
                 _roleCard(
@@ -51,8 +52,8 @@ class _AccountTypePageState extends State<AccountTypePage> {
                   title: 'Hotel owner',
                   description: 'List your hotels and manage booking requests.',
                   icon: Icons.apartment_outlined,
-                  accent: const Color(0xFF78585C),
-                  tint: const Color(0xFFF7EFEC),
+                  accent: AppColors.ownerAccent,
+                  tint: AppColors.ownerSurface,
                 ),
               ],
             ),
@@ -70,9 +71,9 @@ class _AccountTypePageState extends State<AccountTypePage> {
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Text(
+              Text(
                 'Already have an account?',
-                style: TextStyle(color: AuthPageLayout.muted),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
               TextButton(
                 onPressed: () => context.go('/sign-in'),
@@ -97,10 +98,10 @@ class _AccountTypePageState extends State<AccountTypePage> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       decoration: BoxDecoration(
-        color: selected ? tint : Colors.white,
+        color: selected ? tint : AppColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: selected ? accent : const Color(0xFFE3DFDF),
+          color: selected ? accent : AppColors.subtleBorder,
           width: selected ? 1.8 : 1,
         ),
       ),
@@ -121,7 +122,7 @@ class _AccountTypePageState extends State<AccountTypePage> {
           padding: const EdgeInsets.only(top: 8),
           child: Text(
             description,
-            style: const TextStyle(height: 1.5, color: AuthPageLayout.muted),
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),
         secondary: CircleAvatar(

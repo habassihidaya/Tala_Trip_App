@@ -25,11 +25,7 @@ class BookingFormDetailsChanged extends BookingFormEvent {
   });
 
   @override
-  List<Object?> get props => [
-    checkInDate,
-    checkOutDate,
-    guests,
-  ];
+  List<Object?> get props => [checkInDate, checkOutDate, guests];
 }
 
 // Check availability and obtain the current price.

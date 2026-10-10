@@ -14,27 +14,27 @@ class AuthRepositoryImpl implements AuthRepository {
   final UserDataSource _dataSource;
 
   @override
-Future<Either<Failure, UserEntity>> signUp({
-  required String username,
-  required String email,
-  required String password,
-  required String mobileNumber,
-  required UserRole role,
-}) async {
-  try {
-    final model = await _dataSource.signUp(
-      username: username,
-      email: email,
-      password: password,
-      mobileNumber: mobileNumber,
-      role: role,
-    );
+  Future<Either<Failure, UserEntity>> signUp({
+    required String username,
+    required String email,
+    required String password,
+    required String mobileNumber,
+    required UserRole role,
+  }) async {
+    try {
+      final model = await _dataSource.signUp(
+        username: username,
+        email: email,
+        password: password,
+        mobileNumber: mobileNumber,
+        role: role,
+      );
 
-    return Right(model.toEntity());
-  } catch (error) {
-    return Left(mapExceptionToFailure(error));
+      return Right(model.toEntity());
+    } catch (error) {
+      return Left(mapExceptionToFailure(error));
+    }
   }
-}
 
   @override
   Future<Either<Failure, UserEntity>> signIn({
@@ -42,10 +42,7 @@ Future<Either<Failure, UserEntity>> signUp({
     required String password,
   }) async {
     try {
-      final model = await _dataSource.signIn(
-        email: email,
-        password: password,
-      );
+      final model = await _dataSource.signIn(email: email, password: password);
 
       return Right(model.toEntity());
     } catch (error) {
@@ -87,9 +84,7 @@ Future<Either<Failure, UserEntity>> signUp({
   }
 
   @override
-  Future<Either<Failure, Unit>> sendPasswordResetEmail(
-    String email,
-  ) async {
+  Future<Either<Failure, Unit>> sendPasswordResetEmail(String email) async {
     try {
       await _dataSource.sendPasswordResetEmail(email);
 
@@ -109,23 +104,24 @@ Future<Either<Failure, UserEntity>> signUp({
       return Left(mapExceptionToFailure(error));
     }
   }
+
   @override
-Stream<Either<Failure, String?>> authStateChanges() {
-  try {
-    return _dataSource.authStateChanges().transform(
-      StreamTransformer<String?, Either<Failure, String?>>.fromHandlers(
-        handleData: (userId, sink) {
-          sink.add(Right(userId));
-        },
-        handleError: (error, stackTrace, sink) {
-          sink.add(Left(mapExceptionToFailure(error)));
-        },
-      ),
-    );
-  } catch (error) {
-    return Stream<Either<Failure, String?>>.value(
-      Left(mapExceptionToFailure(error)),
-    );
+  Stream<Either<Failure, String?>> authStateChanges() {
+    try {
+      return _dataSource.authStateChanges().transform(
+        StreamTransformer<String?, Either<Failure, String?>>.fromHandlers(
+          handleData: (userId, sink) {
+            sink.add(Right(userId));
+          },
+          handleError: (error, stackTrace, sink) {
+            sink.add(Left(mapExceptionToFailure(error)));
+          },
+        ),
+      );
+    } catch (error) {
+      return Stream<Either<Failure, String?>>.value(
+        Left(mapExceptionToFailure(error)),
+      );
+    }
   }
-}
 }

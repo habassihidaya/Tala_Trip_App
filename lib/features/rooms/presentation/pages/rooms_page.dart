@@ -94,12 +94,10 @@ class _RoomsView extends StatelessWidget {
             ownsHotel &&
             catalog.hotelStatus != HotelStatus.pending;
         final isTraveler =
-            auth is AuthAuthenticated &&
-            auth.user.role == UserRole.traveler;
+            auth is AuthAuthenticated && auth.user.role == UserRole.traveler;
 
         final isAdmin =
-            auth is AuthAuthenticated &&
-            auth.user.role == UserRole.admin;
+            auth is AuthAuthenticated && auth.user.role == UserRole.admin;
         return PopScope(
           canPop: !state.saving,
           child: Scaffold(
@@ -163,23 +161,16 @@ class _RoomsView extends StatelessWidget {
                           child: Text('No room types have been added yet.'),
                         ),
                       for (final room in catalog.rooms)
-                         RoomCard(
+                        RoomCard(
                           room: room,
                           showInventory: ownsHotel || isAdmin,
                           canEdit: editable,
                           busy: state.saving,
-                          onEdit: () => _edit(
-                            context,
-                            room.type,
-                            room,
-                          ),
-                          onDelete: () => _delete(
-                            context,
-                            room,
-                          ),
-                          onBook: isTraveler &&
-                                  catalog.hotelStatus ==
-                                      HotelStatus.approved
+                          onEdit: () => _edit(context, room.type, room),
+                          onDelete: () => _delete(context, room),
+                          onBook:
+                              isTraveler &&
+                                  catalog.hotelStatus == HotelStatus.approved
                               ? () {
                                   context.push(
                                     '/traveler/hotels/'

@@ -1,5 +1,7 @@
 import 'package:tala_trip_app/features/rooms/presentation/pages/rooms_page.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import '../widgets/app_navigation_shell.dart';
 
 import 'package:tala_trip_app/features/admin/presentation/pages/admin_dashboard_page.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
@@ -23,6 +25,9 @@ import 'package:tala_trip_app/features/bookings/presentation/pages/booking_form_
 import 'package:tala_trip_app/features/rooms/domain/entities/room_entity.dart';
 import 'package:tala_trip_app/features/bookings/presentation/pages/my_bookings_page.dart';
 import 'package:tala_trip_app/features/bookings/presentation/pages/owner_bookings_page.dart';
+import 'package:tala_trip_app/features/profile/presentation/pages/profile_page.dart';
+import 'package:tala_trip_app/features/favorites/presentation/widgets/traveler_favorites_scope.dart';
+import 'package:tala_trip_app/features/favorites/presentation/pages/favorites_page.dart';
 import 'router_refresh_notifier.dart';
 
 GoRouter createAppRouter({
@@ -70,7 +75,8 @@ GoRouter createAppRouter({
       final hasSessionResult =
           authState is AuthAuthenticated ||
           authState is AuthUnauthenticated ||
-          authState is AuthVerificationRequired;
+          authState is AuthVerificationRequired ||
+          authState is AuthProfileRequired;
 
       // Wait for the initial authentication result.
       if (!startupResolved) {
@@ -193,31 +199,7 @@ GoRouter createAppRouter({
           return SignUpPage(role: role);
         },
       ),
-      GoRoute(
-        path: '/traveler/bookings',
-        builder: (context, state) => const MyBookingsPage(),
-      ),
 
-      GoRoute(
-        path: '/owner/bookings',
-        builder: (context, state) => const OwnerBookingsPage(),
-      ),
-      GoRoute(
-        path: '/traveler',
-        builder: (context, state) => const TravelerHomePage(),
-      ),
-      GoRoute(
-        path: '/owner',
-        builder: (context, state) => const HotelOwnerDashboardPage(),
-      ),
-      GoRoute(
-        path: '/admin',
-        builder: (context, state) => const AdminDashboardPage(),
-      ),
-      GoRoute(
-        path: '/owner/hotels',
-        builder: (context, state) => const MyHotelsPage(),
-      ),
       GoRoute(
         path: '/owner/hotels/add',
         builder: (context, state) => const AddHotelPage(),
@@ -228,10 +210,7 @@ GoRouter createAppRouter({
           return HotelDetailsPage(hotelId: state.pathParameters['hotelId']!);
         },
       ),
-      GoRoute(
-        path: '/admin/hotels',
-        builder: (context, state) => const PendingHotelsPage(),
-      ),
+
       GoRoute(
         path: '/admin/hotels/:hotelId',
         builder: (context, state) {
@@ -281,6 +260,186 @@ GoRouter createAppRouter({
             roomType: roomType,
           );
         },
+      ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return TravelerFavoritesScope(
+            authBloc: authBloc,
+            child: AppNavigationShell(
+              navigationShell: navigationShell,
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.favorite_border),
+                  selectedIcon: Icon(Icons.favorite),
+                  label: 'Favorites',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.calendar_month_outlined),
+                  selectedIcon: Icon(Icons.calendar_month),
+                  label: 'My bookings',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Profile',
+                ),
+              ],
+            ),
+          );
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/traveler',
+                builder: (context, state) => const TravelerHomePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/traveler/favorites',
+                builder: (context, state) => const FavoritesPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/traveler/bookings',
+                builder: (context, state) => const MyBookingsPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/traveler/profile',
+                builder: (context, state) => const ProfilePage(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AppNavigationShell(
+            navigationShell: navigationShell,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
+                label: 'Dashboard',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.apartment_outlined),
+                selectedIcon: Icon(Icons.apartment),
+                label: 'My hotels',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_month_outlined),
+                selectedIcon: Icon(Icons.calendar_month),
+                label: 'Bookings',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
+          );
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/owner',
+                builder: (context, state) => const HotelOwnerDashboardPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/owner/hotels',
+                builder: (context, state) => const MyHotelsPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/owner/bookings',
+                builder: (context, state) => const OwnerBookingsPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/owner/profile',
+                builder: (context, state) => const ProfilePage(),
+              ),
+            ],
+          ),
+        ],
+      ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AppNavigationShell(
+            navigationShell: navigationShell,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
+                label: 'Dashboard',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.fact_check_outlined),
+                selectedIcon: Icon(Icons.fact_check),
+                label: 'Hotel reviews',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
+          );
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin',
+                builder: (context, state) => const AdminDashboardPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/hotels',
+                builder: (context, state) => const PendingHotelsPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/profile',
+                builder: (context, state) => const ProfilePage(),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );

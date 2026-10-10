@@ -36,8 +36,7 @@ abstract class BookingRepository {
   );
 
   // Restore unresolved submissions for the signed-in account only.
-  Future<Either<Failure, List<BookingSubmission>>>
-      getUnresolvedSubmissions();
+  Future<Either<Failure, List<BookingSubmission>>> getUnresolvedSubmissions();
 
   // Load bookings belonging to the signed-in traveler.
   Future<Either<Failure, List<BookingEntity>>> getMyBookings();
@@ -46,14 +45,10 @@ abstract class BookingRepository {
   Future<Either<Failure, List<BookingEntity>>> getOwnerBookings();
 
   // Load one booking, subject to access permissions.
-  Future<Either<Failure, BookingEntity>> getBookingById(
-    String bookingId,
-  );
+  Future<Either<Failure, BookingEntity>> getBookingById(String bookingId);
 
   // Confirm and reserve availability atomically.
-  Future<Either<Failure, BookingEntity>> acceptBooking(
-    String bookingId,
-  );
+  Future<Either<Failure, BookingEntity>> acceptBooking(String bookingId);
 
   // Reject a pending request with a reason.
   Future<Either<Failure, BookingEntity>> rejectBooking({
@@ -62,7 +57,5 @@ abstract class BookingRepository {
   });
 
   // Cancel and release availability when previously confirmed.
-  Future<Either<Failure, BookingEntity>> cancelBooking(
-    String bookingId,
-  );
+  Future<Either<Failure, BookingEntity>> cancelBooking(String bookingId);
 }

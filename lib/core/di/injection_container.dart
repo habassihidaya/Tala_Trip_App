@@ -63,6 +63,22 @@ import 'package:tala_trip_app/features/onboarding/domain/repositories/onboarding
 import 'package:tala_trip_app/features/onboarding/domain/usecases/onboarding_usecases.dart';
 import 'package:tala_trip_app/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 
+import 'package:tala_trip_app/features/profile/data/data_sources/profile_data_source.dart';
+import 'package:tala_trip_app/features/profile/data/data_sources/firebase_profile_data_source.dart';
+import 'package:tala_trip_app/features/profile/data/data_sources/profile_photo_data_source.dart';
+import 'package:tala_trip_app/features/profile/data/data_sources/cloudinary_profile_photo_data_source.dart';
+import 'package:tala_trip_app/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:tala_trip_app/features/profile/domain/repositories/profile_repository.dart';
+import 'package:tala_trip_app/features/profile/domain/usecases/profile_usecases.dart';
+import 'package:tala_trip_app/features/profile/presentation/bloc/profile_bloc.dart';
+
+import 'package:tala_trip_app/features/favorites/data/data_sources/favorites_data_source.dart';
+import 'package:tala_trip_app/features/favorites/data/data_sources/local_favorites_data_source.dart';
+import 'package:tala_trip_app/features/favorites/data/repositories/favorites_repository_impl.dart';
+import 'package:tala_trip_app/features/favorites/domain/repositories/favorites_repository.dart';
+import 'package:tala_trip_app/features/favorites/domain/usecases/favorites_usecases.dart';
+import 'package:tala_trip_app/features/favorites/presentation/bloc/favorites_bloc.dart';
+
 final getIt = GetIt.instance;
 
 Future<void> setupDependencies() async {
@@ -181,6 +197,52 @@ Future<void> setupDependencies() async {
     () => http.Client(),
     dispose: (client) => client.close(),
   );
+  // Profile: Firestore data source.
+  getIt.registerLazySingleton<ProfileDataSource>(
+    () => FirebaseProfileDataSource(
+      auth: getIt<FirebaseAuth>(),
+      firestore: getIt<FirebaseFirestore>(),
+    ),
+  );
+
+  // Profile: Cloudinary photo uploader.
+  getIt.registerLazySingleton<ProfilePhotoDataSource>(
+    () => CloudinaryProfilePhotoDataSource(
+      client: getIt<http.Client>(),
+      cloudName: 'lbkc13qt',
+      uploadPreset: 'tala_hotels',
+    ),
+  );
+
+  // Profile: repository.
+  getIt.registerLazySingleton<ProfileRepository>(
+    () => ProfileRepositoryImpl(
+      dataSource: getIt<ProfileDataSource>(),
+      photoDataSource: getIt<ProfilePhotoDataSource>(),
+    ),
+  );
+
+  // Profile: use cases.
+  getIt.registerLazySingleton<GetProfile>(
+    () => GetProfile(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateProfileName>(
+    () => UpdateProfileName(getIt<ProfileRepository>()),
+  );
+
+  getIt.registerLazySingleton<UpdateProfilePhoto>(
+    () => UpdateProfilePhoto(getIt<ProfileRepository>()),
+  );
+
+  // Profile: a fresh BLoC for each profile page.
+  getIt.registerFactory<ProfileBloc>(
+    () => ProfileBloc(
+      getProfile: getIt<GetProfile>(),
+      updateProfileName: getIt<UpdateProfileName>(),
+      updateProfilePhoto: getIt<UpdateProfilePhoto>(),
+    ),
+  );
 
   // Photo data source.
   getIt.registerLazySingleton<HotelPhotoDataSource>(
@@ -243,10 +305,8 @@ Future<void> setupDependencies() async {
       getIt<DeleteRoom>(),
     ),
   );
-      // Bookings: Algeria's calendar dates and local time.
-  getIt.registerLazySingleton<AlgeriaTime>(
-    () => AlgeriaTime.initialize(),
-  );
+  // Bookings: Algeria's calendar dates and local time.
+  getIt.registerLazySingleton<AlgeriaTime>(() => AlgeriaTime.initialize());
 
   // Bookings: open local storage before starting the app.
   final bookingLocalDataSource =
@@ -336,9 +396,7 @@ Future<void> setupDependencies() async {
   );
 
   getIt.registerLazySingleton<GetUnresolvedBookingSubmissions>(
-    () => GetUnresolvedBookingSubmissions(
-      getIt<BookingRepository>(),
-    ),
+    () => GetUnresolvedBookingSubmissions(getIt<BookingRepository>()),
   );
 
   getIt.registerLazySingleton<GetMyBookings>(
@@ -364,11 +422,9 @@ Future<void> setupDependencies() async {
   getIt.registerLazySingleton<CancelBooking>(
     () => CancelBooking(getIt<BookingRepository>()),
   );
-    // Booking form network check.
+  // Booking form network check.
   getIt.registerLazySingleton<NetworkInfo>(
-    () => ConnectivityNetworkInfo(
-      Connectivity(),
-    ),
+    () => ConnectivityNetworkInfo(Connectivity()),
   );
 
   // A new form BLoC for each hotel and room page.
@@ -380,15 +436,12 @@ Future<void> setupDependencies() async {
       prepareSubmission: getIt<PrepareBookingSubmission>(),
       submitBooking: getIt<SubmitBooking>(),
       resolveSubmission: getIt<ResolveBookingSubmission>(),
-      getUnresolvedSubmissions:
-          getIt<GetUnresolvedBookingSubmissions>(),
+      getUnresolvedSubmissions: getIt<GetUnresolvedBookingSubmissions>(),
       networkInfo: getIt<NetworkInfo>(),
       algeriaTime: getIt<AlgeriaTime>(),
     ),
-    
-
   );
-    // Booking lists: a separate BLoC for travelers and owners.
+  // Booking lists: a separate BLoC for travelers and owners.
   getIt.registerFactoryParam<BookingListBloc, BookingListAudience, void>(
     (audience, _) => BookingListBloc(
       audience: audience,
@@ -400,43 +453,76 @@ Future<void> setupDependencies() async {
     ),
   );
 
-    // Onboarding: local preferences.
+  // Onboarding: local preferences.
   getIt.registerLazySingleton<SharedPreferencesAsync>(
     () => SharedPreferencesAsync(),
   );
 
   // Onboarding: data source.
   getIt.registerLazySingleton<OnboardingLocalDataSource>(
-    () => OnboardingLocalDataSource(
-      getIt<SharedPreferencesAsync>(),
-    ),
+    () => OnboardingLocalDataSource(getIt<SharedPreferencesAsync>()),
   );
 
   // Onboarding: repository.
   getIt.registerLazySingleton<OnboardingRepository>(
-    () => OnboardingRepositoryImpl(
-      getIt<OnboardingLocalDataSource>(),
-    ),
+    () => OnboardingRepositoryImpl(getIt<OnboardingLocalDataSource>()),
   );
 
   // Onboarding: use cases.
   getIt.registerLazySingleton<CheckOnboardingCompleted>(
-    () => CheckOnboardingCompleted(
-      getIt<OnboardingRepository>(),
-    ),
+    () => CheckOnboardingCompleted(getIt<OnboardingRepository>()),
   );
 
   getIt.registerLazySingleton<CompleteOnboarding>(
-    () => CompleteOnboarding(
-      getIt<OnboardingRepository>(),
-    ),
+    () => CompleteOnboarding(getIt<OnboardingRepository>()),
   );
 
   // Onboarding: BLoC.
-    getIt.registerFactory<OnboardingBloc>(
+  getIt.registerFactory<OnboardingBloc>(
     () => OnboardingBloc(
       getIt<CheckOnboardingCompleted>(),
       getIt<CompleteOnboarding>(),
+    ),
+  );
+
+  // Favorites: local storage.
+  final favoritesPreferences = await SharedPreferences.getInstance();
+
+  getIt.registerLazySingleton<FavoritesDataSource>(
+    () => LocalFavoritesDataSource(favoritesPreferences),
+  );
+
+  // Favorites: repository.
+  getIt.registerLazySingleton<FavoritesRepository>(
+    () => FavoritesRepositoryImpl(
+      getIt<FavoritesDataSource>(),
+      getIt<HotelRepository>(),
+      getIt<FirebaseAuth>(),
+    ),
+  );
+
+  // Favorites: use cases.
+  getIt.registerLazySingleton<GetFavoriteIds>(
+    () => GetFavoriteIds(getIt<FavoritesRepository>()),
+  );
+
+  getIt.registerLazySingleton<GetFavoriteHotels>(
+    () => GetFavoriteHotels(getIt<FavoritesRepository>()),
+  );
+
+  getIt.registerLazySingleton<AddFavorite>(
+    () => AddFavorite(getIt<FavoritesRepository>()),
+  );
+
+  getIt.registerLazySingleton<RemoveFavorite>(
+    () => RemoveFavorite(getIt<FavoritesRepository>()),
+  );
+  getIt.registerFactory<FavoritesBloc>(
+    () => FavoritesBloc(
+      getFavoriteIds: getIt<GetFavoriteIds>(),
+      getFavoriteHotels: getIt<GetFavoriteHotels>(),
+      addFavorite: getIt<AddFavorite>(),
+      removeFavorite: getIt<RemoveFavorite>(),
     ),
   );
 }

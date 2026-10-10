@@ -20,14 +20,8 @@ class BookingAvailability extends Equatable {
 
   bool get hasAvailability => availableRooms > 0;
 
-  int get totalPriceInCentimes =>
-      room.priceInCentimes * dates.nights;
+  int get totalPriceInCentimes => room.priceInCentimes * dates.nights;
 
   @override
-  List<Object?> get props => [
-    hotelId,
-    room,
-    dates,
-    availableRooms,
-  ];
+  List<Object?> get props => [hotelId, room, dates, availableRooms];
 }

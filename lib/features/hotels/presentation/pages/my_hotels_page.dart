@@ -31,26 +31,22 @@ class _MyHotelsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-     onPressed: () async {
-    final created = await context.push<bool>(
-    '/owner/hotels/add',
-  );
+        onPressed: () async {
+          final created = await context.push<bool>('/owner/hotels/add');
 
-  if (!context.mounted) return;
+          if (!context.mounted) return;
 
-  if (created == true) {
-    _reload(context);
+          if (created == true) {
+            _reload(context);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hotel draft saved.'),
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Hotel draft saved.')));
+          }
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Add hotel'),
       ),
-    );
-  }
-},
-    icon: const Icon(Icons.add),
-    label: const Text('Add hotel'),
-  ),
       appBar: AppBar(
         title: const Text('My hotels'),
         actions: [
@@ -69,11 +65,8 @@ class _MyHotelsView extends StatelessWidget {
       ),
       body: BlocBuilder<HotelBloc, HotelState>(
         builder: (context, state) {
-          if (state is HotelInitialState ||
-              state is HotelLoadingState) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+          if (state is HotelInitialState || state is HotelLoadingState) {
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (state is HotelErrorState) {
@@ -83,10 +76,7 @@ class _MyHotelsView extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(state.message, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () => _reload(context),
@@ -118,27 +108,27 @@ class _MyHotelsView extends StatelessWidget {
                 final hotel = state.hotels[index];
 
                 return HotelCard(
-               name: hotel.name,
-               wilaya: hotel.wilaya,
-              status: hotel.status.name,
-                 onTap: () async {
-  final submitted = await context.push<bool>(
-    '/owner/hotels/${Uri.encodeComponent(hotel.id)}',
-  );
+                  name: hotel.name,
+                  wilaya: hotel.wilaya,
+                  status: hotel.status.name,
+                  onTap: () async {
+                    final submitted = await context.push<bool>(
+                      '/owner/hotels/${Uri.encodeComponent(hotel.id)}',
+                    );
 
-  if (!context.mounted) return;
+                    if (!context.mounted) return;
 
-  _reload(context);
+                    _reload(context);
 
-  if (submitted == true) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hotel submitted for review.'),
-      ),
-    );
-  }
-},
-           );
+                    if (submitted == true) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Hotel submitted for review.'),
+                        ),
+                      );
+                    }
+                  },
+                );
               },
             );
           }

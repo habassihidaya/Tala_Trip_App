@@ -33,14 +33,8 @@ class BookingCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            _InfoLine(
-              label: 'Room',
-              value: booking.roomType.label,
-            ),
-            _InfoLine(
-              label: 'Guests',
-              value: '${booking.guests} guest(s)',
-            ),
+            _InfoLine(label: 'Room', value: booking.roomType.label),
+            _InfoLine(label: 'Guests', value: '${booking.guests} guest(s)'),
             _InfoLine(
               label: 'Stay',
               value:
@@ -63,22 +57,13 @@ class BookingCard extends StatelessWidget {
 
             Chip(
               label: Text(_statusLabel(booking.status)),
-              backgroundColor: _statusColor(
-                context,
-                booking.status,
-              ),
+              backgroundColor: _statusColor(context, booking.status),
             ),
 
             if (ownerView) ...[
               const SizedBox(height: 8),
-               _InfoLine(
-                label: 'Hotel',
-                value: booking.hotelName,
-              ),
-              _InfoLine(
-                label: 'Traveler phone',
-                value: booking.travelerPhone,
-              ),
+              _InfoLine(label: 'Hotel', value: booking.hotelName),
+              _InfoLine(label: 'Traveler phone', value: booking.travelerPhone),
               Wrap(
                 spacing: 8,
                 children: [
@@ -98,25 +83,16 @@ class BookingCard extends StatelessWidget {
               ),
             ] else ...[
               const SizedBox(height: 8),
-              _InfoLine(
-                label: 'Hotel address',
-                value: booking.hotelAddress,
-              ),
+              _InfoLine(label: 'Hotel address', value: booking.hotelAddress),
             ],
 
             if (booking.rejectionReason != null &&
                 booking.rejectionReason!.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
-              _InfoLine(
-                label: 'Reason',
-                value: booking.rejectionReason!,
-              ),
+              _InfoLine(label: 'Reason', value: booking.rejectionReason!),
             ],
 
-            if (actions != null) ...[
-              const Divider(height: 24),
-              actions!,
-            ],
+            if (actions != null) ...[const Divider(height: 24), actions!],
           ],
         ),
       ),
@@ -128,10 +104,7 @@ class _InfoLine extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoLine({
-    required this.label,
-    required this.value,
-  });
+  const _InfoLine({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -171,10 +144,7 @@ String _statusLabel(BookingStatus status) {
   return text[0].toUpperCase() + text.substring(1);
 }
 
-Color _statusColor(
-  BuildContext context,
-  BookingStatus status,
-) {
+Color _statusColor(BuildContext context, BookingStatus status) {
   final colors = Theme.of(context).colorScheme;
 
   return switch (status) {

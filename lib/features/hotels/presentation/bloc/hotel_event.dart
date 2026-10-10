@@ -64,10 +64,7 @@ class RejectHotelEvent extends HotelEvent {
   final String id;
   final String reason;
 
-  RejectHotelEvent({
-    required this.id,
-    required this.reason,
-  });
+  RejectHotelEvent({required this.id, required this.reason});
 }
 
 class GetApprovedHotelsEvent extends HotelEvent {}

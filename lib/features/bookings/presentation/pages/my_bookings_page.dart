@@ -16,9 +16,9 @@ class MyBookingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => GetIt.instance<BookingListBloc>(
-        param1: BookingListAudience.traveler,
-      )..add(const BookingListStarted()),
+      create: (_) =>
+          GetIt.instance<BookingListBloc>(param1: BookingListAudience.traveler)
+            ..add(const BookingListStarted()),
       child: const _MyBookingsView(),
     );
   }
@@ -54,9 +54,7 @@ class _MyBookingsView extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      context.read<BookingListBloc>().add(
-        BookingCancelRequested(booking.id),
-      );
+      context.read<BookingListBloc>().add(BookingCancelRequested(booking.id));
     }
   }
 
@@ -65,9 +63,9 @@ class _MyBookingsView extends StatelessWidget {
     return BlocConsumer<BookingListBloc, BookingListState>(
       listener: (context, state) {
         if (state.message != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message!)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message!)));
         }
       },
       builder: (context, state) {
@@ -85,8 +83,8 @@ class _MyBookingsView extends StatelessWidget {
                 onPressed: state.isBusy
                     ? null
                     : () => context.read<BookingListBloc>().add(
-                          const BookingListRefreshRequested(),
-                        ),
+                        const BookingListRefreshRequested(),
+                      ),
                 icon: const Icon(Icons.refresh),
               ),
             ],
@@ -99,36 +97,40 @@ class _MyBookingsView extends StatelessWidget {
                   message: state.message ?? 'Bookings could not be loaded.',
                 )
               : state.bookings.isEmpty
-              ? const Center(
-                  child: Text('You have no booking requests yet.'),
-                )
+              ? const Center(child: Text('You have no booking requests yet.'))
               : RefreshIndicator(
                   onRefresh: () async {
-                    context.read<BookingListBloc>().add(
-                      const BookingListRefreshRequested(),
-                    );
+                    final bloc = context.read<BookingListBloc>();
 
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 300),
-                    );
+                    if (bloc.state.isBusy) {
+                      return;
+                    }
+
+                    final refreshFinished = bloc.stream
+                        .where(
+                          (state) =>
+                              state.status == BookingListStatus.loaded ||
+                              state.status == BookingListStatus.failure,
+                        )
+                        .take(1)
+                        .drain<void>();
+
+                    bloc.add(const BookingListRefreshRequested());
+
+                    await refreshFinished;
                   },
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     itemCount: state.bookings.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final booking = state.bookings[index];
 
                       return BookingCard(
                         booking: booking,
                         ownerView: false,
-                        actions: _travelerActions(
-                          context,
-                          booking,
-                          state,
-                        ),
+                        actions: _travelerActions(context, booking, state),
                       );
                     },
                   ),
@@ -153,14 +155,10 @@ class _MyBookingsView extends StatelessWidget {
     return Align(
       alignment: Alignment.centerRight,
       child: OutlinedButton.icon(
-        onPressed: state.isActionLoading(booking.id)
-            ? null
-            : () => _cancelBooking(context, booking),
+        onPressed: state.isBusy ? null : () => _cancelBooking(context, booking),
         icon: const Icon(Icons.cancel_outlined),
         label: Text(
-          state.isActionLoading(booking.id)
-              ? 'Cancelling…'
-              : 'Cancel booking',
+          state.isActionLoading(booking.id) ? 'Cancelling…' : 'Cancel booking',
         ),
       ),
     );
@@ -170,9 +168,7 @@ class _MyBookingsView extends StatelessWidget {
 class _ErrorView extends StatelessWidget {
   final String message;
 
-  const _ErrorView({
-    required this.message,
-  });
+  const _ErrorView({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -186,8 +182,8 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () => context.read<BookingListBloc>().add(
-                    const BookingListRefreshRequested(),
-                  ),
+                const BookingListRefreshRequested(),
+              ),
               child: const Text('Retry'),
             ),
           ],

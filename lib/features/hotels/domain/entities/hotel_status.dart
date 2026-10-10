@@ -1,6 +1,1 @@
- enum HotelStatus { 
-  draft,
-  pending,
-  approved,
-  rejected }
-   
+enum HotelStatus { draft, pending, approved, rejected }

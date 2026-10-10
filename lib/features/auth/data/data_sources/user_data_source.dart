@@ -10,10 +10,7 @@ abstract class UserDataSource {
     required UserRole role,
   });
 
-  Future<UserModel> signIn({
-    required String email,
-    required String password,
-  });
+  Future<UserModel> signIn({required String email, required String password});
 
   Future<UserModel> getUser();
   Stream<String?> authStateChanges();
@@ -23,5 +20,4 @@ abstract class UserDataSource {
   Future<void> sendVerificationEmail();
   Future<bool> isEmailVerified();
   Future<void> sendPasswordResetEmail(String email);
-  
 }

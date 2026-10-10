@@ -9,9 +9,7 @@ class AlgeriaTime {
   factory AlgeriaTime.initialize() {
     tz_data.initializeTimeZones();
 
-    return AlgeriaTime._(
-      tz.getLocation('Africa/Algiers'),
-    );
+    return AlgeriaTime._(tz.getLocation('Africa/Algiers'));
   }
 
   // Convert an actual instant into Algeria's local time.
@@ -21,16 +19,10 @@ class AlgeriaTime {
 
   // Return Algeria's calendar date using our date-only convention.
   // The result represents a date, not an actual midnight instant.
-  DateTime today({
-    required DateTime now,
-  }) {
+  DateTime today({required DateTime now}) {
     final local = toAlgeriaTime(now);
 
-    return DateTime.utc(
-      local.year,
-      local.month,
-      local.day,
-    );
+    return DateTime.utc(local.year, local.month, local.day);
   }
 
   // Convert midnight at the start of an Algeria calendar date

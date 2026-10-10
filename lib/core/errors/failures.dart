@@ -24,7 +24,11 @@ class ServerFailure extends Failure {
 class UnexpectedFailure extends Failure {
   const UnexpectedFailure(super.message);
 }
+
 class UnauthenticatedFailure extends Failure {
-  const UnauthenticatedFailure()
-      : super('Please sign in to continue.');
+  const UnauthenticatedFailure() : super('Please sign in to continue.');
+}
+
+class IncompleteProfileFailure extends Failure {
+  const IncompleteProfileFailure(super.message);
 }
