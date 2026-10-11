@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:tala_trip_app/features/rooms/domain/entities/room_entity.dart';
 
@@ -117,11 +118,30 @@ class _BookingFormView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<BookingFormBloc, BookingFormState>(
+      listenWhen: (previous, current) {
+        return current.status == BookingFormStatus.submitted &&
+            current.booking != null &&
+            (previous.status != BookingFormStatus.submitted ||
+                previous.booking?.id != current.booking?.id);
+      },
       listener: (context, state) {
-        if (state.status == BookingFormStatus.submitted &&
-            state.booking != null) {
-          _showMessage(context, 'Booking request sent successfully.');
-        }
+        final booking = state.booking;
+        if (booking == null) return;
+
+        final messenger = ScaffoldMessenger.of(context);
+
+        context.go(
+          Uri(
+            path: '/traveler/bookings',
+            queryParameters: {'submitted': booking.id},
+          ).toString(),
+        );
+
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(content: Text('Booking request sent successfully.')),
+          );
       },
       builder: (context, state) {
         final bloc = context.read<BookingFormBloc>();

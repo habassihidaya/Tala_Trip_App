@@ -12,6 +12,11 @@ import 'hotel_state.dart';
 
 class HotelBloc extends Bloc<HotelEvent, HotelState> {
   final Map<String, String> _uploadedPhotos = {};
+  List<HotelEntity> _searchableHotels = const [];
+  String? _selectedWilaya;
+  String _searchQuery = '';
+  bool _hasSearchableHotels = false;
+  bool _isApprovedList = false;
   final CreateHotelDraft _createHotelDraft;
   final GetMyHotels _getMyHotels;
   final GetHotelById _getHotelById;
@@ -45,6 +50,29 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
   }
 
   Future<void> _onEvent(HotelEvent event, Emitter<HotelState> emit) async {
+    if (event is SearchHotelsEvent) {
+      _searchQuery = event.query;
+
+      if (_hasSearchableHotels &&
+          (state is HotelsLoadedState || state is HotelsEmptyState)) {
+        _emitFilteredHotels(emit);
+      }
+
+      return;
+    }
+
+    if (event is FilterApprovedHotelsEvent) {
+      if (!_isApprovedList ||
+          !_hasSearchableHotels ||
+          (state is! HotelsLoadedState && state is! HotelsEmptyState)) {
+        return;
+      }
+
+      _selectedWilaya = event.wilaya;
+      _emitFilteredHotels(emit);
+      return;
+    }
+
     emit(HotelLoadingState());
 
     if (event is CreateHotelDraftEvent) {
@@ -106,10 +134,11 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
 
       return;
     }
-
     if (event is GetMyHotelsEvent) {
       final result = await _getMyHotels();
-      _emitHotelList(result, emit);
+
+      _storeSearchableHotels(result, emit, approvedList: false);
+
       return;
     }
 
@@ -268,21 +297,66 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
 
     if (event is GetApprovedHotelsEvent) {
       final result = await _getApprovedHotels();
-      _emitHotelList(result, emit);
+
+      _storeSearchableHotels(result, emit, approvedList: true);
+
       return;
     }
 
     emit(HotelErrorState(message: 'Unsupported hotel action.'));
   }
 
-  Future<Either<Failure, String>> _uploadOnce(String path) async {
-    final cached = _uploadedPhotos[path];
-    if (cached != null) return Right(cached);
-    final result = await _uploadHotelPhoto(path);
-    result.fold<void>((_) {}, (url) {
-      _uploadedPhotos[path] = url;
-    });
-    return result;
+  void _storeSearchableHotels(
+    Either<Failure, List<HotelEntity>> result,
+    Emitter<HotelState> emit, {
+    required bool approvedList,
+  }) {
+    _isApprovedList = approvedList;
+
+    if (!approvedList) {
+      _selectedWilaya = null;
+    }
+
+    result.fold<void>(
+      (failure) {
+        _searchableHotels = const [];
+        _hasSearchableHotels = false;
+        emit(HotelErrorState(message: failure.message));
+      },
+      (hotels) {
+        _searchableHotels = List<HotelEntity>.unmodifiable(hotels);
+        _hasSearchableHotels = true;
+        _emitFilteredHotels(emit);
+      },
+    );
+  }
+
+  void _emitFilteredHotels(Emitter<HotelState> emit) {
+    final query = _normalizeSearch(_searchQuery);
+    final words = query.isEmpty ? const <String>[] : query.split(' ');
+
+    final hotels = _searchableHotels
+        .where((hotel) {
+          final matchesWilaya =
+              !_isApprovedList ||
+              _selectedWilaya == null ||
+              hotel.wilaya == _selectedWilaya;
+
+          if (!matchesWilaya) return false;
+
+          final searchableText = _normalizeSearch(
+            '${hotel.name} ${hotel.wilaya} ${hotel.address}',
+          );
+
+          return words.every(searchableText.contains);
+        })
+        .toList(growable: false);
+
+    if (hotels.isEmpty) {
+      emit(HotelsEmptyState());
+    } else {
+      emit(HotelsLoadedState(hotels: hotels));
+    }
   }
 
   // Shared handling for the three hotel-list operations.
@@ -303,6 +377,35 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
   }
 
   // Shared handling for operations that return success without data.
+  String _normalizeSearch(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'\balger\b'), 'algiers')
+        .replaceAll(RegExp('[àâä]'), 'a')
+        .replaceAll(RegExp('[éèêë]'), 'e')
+        .replaceAll(RegExp('[îï]'), 'i')
+        .replaceAll(RegExp('[ôö]'), 'o')
+        .replaceAll(RegExp('[ùûü]'), 'u')
+        .replaceAll('ç', 'c')
+        .replaceAll('œ', 'oe')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  Future<Either<Failure, String>> _uploadOnce(String path) async {
+    final cached = _uploadedPhotos[path];
+
+    if (cached != null) return Right(cached);
+
+    final result = await _uploadHotelPhoto(path);
+
+    result.fold<void>((_) {}, (url) {
+      _uploadedPhotos[path] = url;
+    });
+
+    return result;
+  }
+
   void _emitActionResult(
     Either<Failure, Unit> result,
     Emitter<HotelState> emit, {

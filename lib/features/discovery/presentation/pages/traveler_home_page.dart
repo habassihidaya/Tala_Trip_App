@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:tala_trip_app/core/constants/app_colors.dart';
 import 'package:tala_trip_app/core/di/injection_container.dart';
-import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
-import 'package:tala_trip_app/features/auth/presentation/blocs/auth_event.dart';
-import 'package:tala_trip_app/features/auth/presentation/blocs/auth_state.dart';
+import 'package:tala_trip_app/core/widgets/app_search_field.dart';
 import 'package:tala_trip_app/features/favorites/presentation/widgets/traveler_hotel_card.dart';
+import 'package:tala_trip_app/features/hotels/domain/entities/hotel_entity.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_event.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_state.dart';
@@ -17,55 +18,10 @@ class TravelerHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('TALA Trip'),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            tooltip: 'My bookings',
-            onPressed: () => context.go('/traveler/bookings'),
-            icon: const Icon(Icons.calendar_month_outlined),
-          ),
-          BlocConsumer<AuthBloc, AuthState>(
-            listenWhen: (previous, current) =>
-                current is AuthAuthenticated &&
-                current.signOutError != null &&
-                (previous is! AuthAuthenticated ||
-                    previous.signOutError != current.signOutError),
-            listener: (context, state) {
-              if (state is AuthAuthenticated && state.signOutError != null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(state.signOutError!)));
-              }
-            },
-            builder: (context, state) {
-              final signingOut =
-                  state is AuthAuthenticated && state.isSigningOut;
-
-              final canSignOut =
-                  state is AuthAuthenticated && !state.isSigningOut;
-
-              return IconButton(
-                tooltip: 'Sign out',
-                onPressed: canSignOut
-                    ? () {
-                        context.read<AuthBloc>().add(SignOutRequested());
-                      }
-                    : null,
-                icon: signingOut
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.logout),
-              );
-            },
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: BlocProvider<HotelBloc>(
           create: (_) => getIt<HotelBloc>()..add(GetApprovedHotelsEvent()),
           child: const _ApprovedHotels(),
@@ -75,85 +31,474 @@ class TravelerHomePage extends StatelessWidget {
   }
 }
 
-class _ApprovedHotels extends StatelessWidget {
+class _ApprovedHotels extends StatefulWidget {
   const _ApprovedHotels();
+
+  @override
+  State<_ApprovedHotels> createState() => _ApprovedHotelsState();
+}
+
+class _ApprovedHotelsState extends State<_ApprovedHotels> {
+  final _searchController = TextEditingController();
+
+  String? _selectedWilaya;
+
+  bool get _hasSearch => _searchController.text.trim().isNotEmpty;
+
+  String get _selectedWilayaLabel => _selectedWilaya ?? '';
+
+  void _searchHotels(String query) {
+    setState(() {});
+
+    context.read<HotelBloc>().add(SearchHotelsEvent(query: query));
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _searchHotels('');
+  }
+
+  void _selectWilaya(String? wilaya) {
+    if (_selectedWilaya == wilaya) return;
+
+    setState(() {
+      _selectedWilaya = wilaya;
+    });
+
+    context.read<HotelBloc>().add(FilterApprovedHotelsEvent(wilaya: wilaya));
+  }
+
+  void _reload() {
+    context.read<HotelBloc>().add(GetApprovedHotelsEvent());
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<HotelBloc, HotelState>(
       builder: (context, state) {
-        void reload() {
-          context.read<HotelBloc>().add(GetApprovedHotelsEvent());
-        }
+        final loading =
+            state is HotelInitialState || state is HotelLoadingState;
 
-        if (state is HotelInitialState || state is HotelLoadingState) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        final hotels = state is HotelsLoadedState
+            ? state.hotels
+            : const <HotelEntity>[];
 
-        if (state is HotelErrorState || state is HotelsEmptyState) {
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    state is HotelErrorState
-                        ? state.message
-                        : 'No approved hotels yet. Check back soon.',
-                    textAlign: TextAlign.center,
+        final canFilter =
+            state is HotelsLoadedState || state is HotelsEmptyState;
+
+        final title = _hasSearch
+            ? (_selectedWilaya == null
+                  ? 'Search results'
+                  : 'Search results in $_selectedWilayaLabel')
+            : (_selectedWilaya == null
+                  ? 'Recommended stays'
+                  : 'Hotels in $_selectedWilayaLabel');
+
+        return CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverToBoxAdapter(
+              child: _HomeHeader(
+                searchController: _searchController,
+                onSearchChanged: _searchHotels,
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: _WilayaSection(
+                selectedWilaya: _selectedWilaya,
+                enabled: canFilter,
+                onSelected: _selectWilaya,
+              ),
+            ),
+
+            // Results heading and refresh button.
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(20.w, 24.h, 12.w, 12.h),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Refresh hotels',
+                      onPressed: loading ? null : _reload,
+                      color: AppColors.primary,
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Loading.
+            if (loading)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48.h),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              )
+            // Error.
+            else if (state is HotelErrorState)
+              SliverToBoxAdapter(
+                child: _HomeMessage(
+                  icon: Icons.wifi_off_rounded,
+                  message: state.message,
+                  label: 'Try again',
+                  onPressed: _reload,
+                ),
+              )
+            // Empty list or no matching results.
+            else if (state is HotelsEmptyState ||
+                (state is HotelsLoadedState && hotels.isEmpty))
+              SliverToBoxAdapter(
+                child: _HomeMessage(
+                  icon: Icons.travel_explore_rounded,
+                  message: _hasSearch
+                      ? (_selectedWilaya == null
+                            ? 'No hotels match your search.'
+                            : 'No hotels match your search in '
+                                  '$_selectedWilayaLabel.')
+                      : (_selectedWilaya == null
+                            ? 'No approved hotels are available yet.'
+                            : 'No approved hotels in '
+                                  '$_selectedWilayaLabel yet.'),
+                  label: _hasSearch
+                      ? 'Clear search'
+                      : (_selectedWilaya == null
+                            ? 'Refresh'
+                            : 'Show all hotels'),
+                  onPressed: _hasSearch
+                      ? _clearSearch
+                      : (_selectedWilaya == null
+                            ? _reload
+                            : () => _selectWilaya(null)),
+                ),
+              )
+            // Hotel results.
+            else if (state is HotelsLoadedState)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 28.h),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12.w,
+                    mainAxisSpacing: 16.h,
+                    // Preserves the current card layout for Step 2.
+                    mainAxisExtent: 180 + 160.sp,
                   ),
-                  const SizedBox(height: 12),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _hotelCard(hotels[index]),
+                    childCount: hotels.length,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _hotelCard(HotelEntity hotel) {
+    return TravelerHotelCard(
+      key: ValueKey(hotel.id),
+      hotel: hotel,
+      onTap: () async {
+        await context.push('/traveler/hotels/${Uri.encodeComponent(hotel.id)}');
+
+        if (!mounted) return;
+
+        _reload();
+      },
+    );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+
+  const _HomeHeader({
+    required this.searchController,
+    required this.onSearchChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/splash.jpg',
+            fit: BoxFit.cover,
+            alignment: Alignment.centerRight,
+            excludeFromSemantics: true,
+            errorBuilder: (_, _, _) =>
+                const ColoredBox(color: AppColors.primaryLight),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AppColors.background.withValues(alpha: 0.94),
+                  AppColors.background.withValues(alpha: 0.5),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0.6, 1],
+                colors: [Colors.transparent, AppColors.background],
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 64.h, 20.w, 24.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                const TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'TALA ',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                    TextSpan(
+                      text: 'TRIP',
+                      style: TextStyle(color: AppColors.primary),
+                    ),
+                  ],
+                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineMedium?.copyWith(letterSpacing: 1.2),
+              ),
+              SizedBox(height: 20.h),
+              Text(
+                'Discover Algeria',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Text(
+                'Find your perfect stay and explore\nbeautiful destinations.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
+              ),
+              SizedBox(height: 24.h),
+              AppSearchField(
+                controller: searchController,
+                onChanged: onSearchChanged,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WilayaSection extends StatelessWidget {
+  final String? selectedWilaya;
+  final bool enabled;
+  final ValueChanged<String?> onSelected;
+
+  const _WilayaSection({
+    required this.selectedWilaya,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  // Display label, stored value, asset name, fallback icon.
+  static const _destinations = [
+    ('Algiers', 'Algiers', 'algiers', Icons.location_city_rounded),
+    ('Oran', 'Oran', 'oran', Icons.waves_rounded),
+    ('Annaba', 'Annaba', 'annaba', Icons.account_balance_rounded),
+    ('Béjaïa', 'Béjaïa', 'bejaia', Icons.landscape_rounded),
+    ('Tipaza', 'Tipaza', 'tipaza', Icons.architecture_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: 8.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Wrap(
+              spacing: 12.w,
+              runSpacing: 4.h,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'Explore by Wilaya',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (selectedWilaya != null)
                   TextButton(
-                    onPressed: reload,
-                    child: Text(state is HotelErrorState ? 'Retry' : 'Refresh'),
+                    onPressed: enabled ? () => onSelected(null) : null,
+                    child: const Text('Show all'),
+                  ),
+              ],
+            ),
+          ),
+          SizedBox(height: 16.h),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < _destinations.length; i++) ...[
+                  if (i > 0) SizedBox(width: 12.w),
+                  _destination(
+                    context,
+                    label: _destinations[i].$1,
+                    value: _destinations[i].$2,
+                    assetName: _destinations[i].$3,
+                    icon: _destinations[i].$4,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _destination(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required String assetName,
+    required IconData icon,
+  }) {
+    final selected = selectedWilaya == value;
+
+    return SizedBox(
+      width: 94.w,
+      child: Semantics(
+        selected: selected,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20.r),
+            onTap: enabled ? () => onSelected(value) : null,
+            child: Padding(
+              padding: EdgeInsets.all(3.r),
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(3.r),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20.r),
+                      border: Border.all(
+                        color: selected
+                            ? AppColors.primary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14.r),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Image.asset(
+                          'assets/images/wilaya_$assetName.jpg',
+                          fit: BoxFit.cover,
+                          excludeFromSemantics: true,
+                          errorBuilder: (_, _, _) => ColoredBox(
+                            color: AppColors.infoSurface,
+                            child: Center(
+                              child: Icon(
+                                icon,
+                                size: 36.r,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: selected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                      fontWeight: selected ? FontWeight.w700 : null,
+                    ),
                   ),
                 ],
               ),
             ),
-          );
-        }
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-        if (state is! HotelsLoadedState) {
-          return const SizedBox.shrink();
-        }
+class _HomeMessage extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final String label;
+  final VoidCallback onPressed;
 
-        return Column(
-          children: [
-            ListTile(
-              title: const Text('Discover hotels in Algeria'),
-              trailing: IconButton(
-                tooltip: 'Refresh',
-                onPressed: reload,
-                icon: const Icon(Icons.refresh),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: state.hotels.length,
-                itemBuilder: (context, index) {
-                  final hotel = state.hotels[index];
+  const _HomeMessage({
+    required this.icon,
+    required this.message,
+    required this.label,
+    required this.onPressed,
+  });
 
-                  return TravelerHotelCard(
-                    key: ValueKey(hotel.id),
-                    hotel: hotel,
-                    onTap: () async {
-                      await context.push(
-                        '/traveler/hotels/${Uri.encodeComponent(hotel.id)}',
-                      );
-
-                      if (context.mounted) {
-                        reload();
-                      }
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24.w, 20.h, 24.w, 40.h),
+      child: Column(
+        children: [
+          Icon(icon, size: 36.r, color: AppColors.primary),
+          SizedBox(height: 12.h),
+          Text(message, textAlign: TextAlign.center),
+          SizedBox(height: 12.h),
+          OutlinedButton(onPressed: onPressed, child: Text(label)),
+        ],
+      ),
     );
   }
 }

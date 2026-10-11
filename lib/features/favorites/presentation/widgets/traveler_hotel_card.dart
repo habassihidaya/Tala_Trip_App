@@ -51,7 +51,10 @@ class TravelerHotelCard extends StatelessWidget {
           ),
           ListTile(
             onTap: onTap,
-            title: Text(hotel.name),
+            title: Text(
+              hotel.name,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             subtitle: Text(hotel.wilaya),
             trailing: _FavoriteButton(hotel: hotel),
           ),

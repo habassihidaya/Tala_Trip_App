@@ -313,7 +313,8 @@ GoRouter createAppRouter({
             routes: [
               GoRoute(
                 path: '/traveler/bookings',
-                builder: (context, state) => const MyBookingsPage(),
+                builder: (context, state) =>
+                    MyBookingsPage(key: ValueKey(state.uri.toString())),
               ),
             ],
           ),

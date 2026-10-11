@@ -1,14 +1,15 @@
-import 'package:url_launcher/url_launcher.dart';
-import 'package:tala_trip_app/features/hotels/domain/validation/hotel_validation.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'package:tala_trip_app/core/constants/app_colors.dart';
 import 'package:tala_trip_app/core/di/injection_container.dart';
 import 'package:tala_trip_app/features/auth/domain/entities/user_role.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_state.dart';
+import 'package:tala_trip_app/features/hotels/domain/validation/hotel_validation.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_bloc.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_event.dart';
 import 'package:tala_trip_app/features/hotels/presentation/bloc/hotel_state.dart';
@@ -37,7 +38,6 @@ class _HotelDetailsView extends StatefulWidget {
 }
 
 class _HotelDetailsViewState extends State<_HotelDetailsView> {
-  // Keep the reason while this page is open, including after a failure.
   String _rejectionReason = '';
   bool _actionRequested = false;
 
@@ -45,7 +45,31 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
     context.read<HotelBloc>().add(GetHotelByIdEvent(id: widget.hotelId));
   }
 
-  // Check the current state before dispatching an admin action.
+  Future<void> _openMap(String mapUrl) async {
+    try {
+      final trimmedUrl = mapUrl.trim();
+      final uri = Uri.tryParse(trimmedUrl);
+
+      if (uri == null || !HotelValidation.validMap(trimmedUrl)) {
+        throw const FormatException('Invalid map location');
+      }
+
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (!opened) {
+        throw StateError('Could not open map');
+      }
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open the map. Please try again later.'),
+        ),
+      );
+    }
+  }
+
   bool _canReview() {
     final authState = context.read<AuthBloc>().state;
     final hotelState = context.read<HotelBloc>().state;
@@ -59,6 +83,7 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
 
   void _approveHotel() {
     if (!_canReview() || _actionRequested) return;
+
     setState(() => _actionRequested = true);
 
     context.read<HotelBloc>().add(ApproveHotelEvent(id: widget.hotelId));
@@ -122,6 +147,7 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
 
     if (!mounted || reason == null) return;
     if (!_canReview() || _actionRequested) return;
+
     setState(() => _actionRequested = true);
 
     context.read<HotelBloc>().add(
@@ -136,8 +162,8 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
         return AlertDialog(
           title: const Text('Delete draft?'),
           content: const Text(
-            'This hotel draft and its room inventory will be permanently deleted. '
-            'This cannot be undone.',
+            'This hotel draft and its room inventory will be permanently '
+            'deleted. This cannot be undone.',
           ),
           actions: [
             TextButton(
@@ -173,7 +199,9 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
     }
 
     if (_actionRequested) return;
+
     setState(() => _actionRequested = true);
+
     bloc.add(DeleteHotelDraftEvent(id: widget.hotelId));
   }
 
@@ -189,6 +217,7 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
             (_actionRequested &&
                 outerState is! HotelActionSuccessState &&
                 outerState is! HotelErrorState);
+
         return PopScope(
           canPop: !busy,
           child: Scaffold(
@@ -201,25 +230,28 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                 if (state is HotelErrorState) {
                   setState(() => _actionRequested = false);
                 }
+
                 if (state is! HotelActionSuccessState) return;
+
                 if (state.action == HotelAction.deleted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Hotel draft deleted.')),
                   );
 
-                  // The list refreshes on return.
-                  // False avoids showing its "submitted for review" message.
+                  // False avoids the owner's submission-success message.
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (context.mounted) context.pop(false);
                   });
+
                   return;
                 }
 
                 if (state.action == HotelAction.submitted) {
-                  // The owner's list already shows the submission message.
+                  // The owner's list shows the submission message.
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (context.mounted) context.pop(true);
                   });
+
                   return;
                 }
 
@@ -233,7 +265,6 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                     context,
                   ).showSnackBar(SnackBar(content: Text(message)));
 
-                  // Returning refreshes the pending-hotels list.
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (context.mounted) context.pop(true);
                   });
@@ -248,13 +279,13 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
 
                 if (state is HotelErrorState) {
                   return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(24.r),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(state.message, textAlign: TextAlign.center),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16.h),
                           ElevatedButton(
                             onPressed: _reload,
                             child: const Text('Reload hotel'),
@@ -267,7 +298,9 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
 
                 if (state is HotelDetailsLoadedState) {
                   final hotel = state.hotel;
-                  final mapUrl = hotel.mapUrl;
+                  final mapUrl = hotel.mapUrl?.trim() ?? '';
+                  final hasValidMap =
+                      mapUrl.isNotEmpty && HotelValidation.validMap(mapUrl);
                   final rejectionReason = hotel.rejectionReason;
 
                   final canSubmit =
@@ -287,6 +320,7 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                       user.id == hotel.ownerId &&
                       (hotel.status.name == 'draft' ||
                           hotel.status.name == 'rejected');
+
                   final canDelete =
                       user != null &&
                       user.role == UserRole.hotelOwner &&
@@ -296,15 +330,79 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                   return AbsorbPointer(
                     absorbing: busy,
                     child: ListView(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16.r),
                       children: [
+                        // Photos.
+                        _HotelPhotoGallery(images: hotel.images),
+                        SizedBox(height: 20.h),
+
+                        // Hotel name.
                         Text(
                           hotel.name,
-                          style: Theme.of(context).textTheme.headlineSmall,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 8),
-                        Text('${hotel.wilaya} • ${hotel.status.name}'),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16.h),
+
+                        // Location and contact.
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 20.h),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.location_on_outlined,
+                                color: AppColors.primary,
+                                size: 22.r,
+                              ),
+                              SizedBox(width: 8.w),
+                              Expanded(
+                                child: Text(
+                                  hotel.wilaya,
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _DetailField(label: 'Address', value: hotel.address),
+                        _DetailField(
+                          label: 'Phone number',
+                          value: hotel.phoneNumber,
+                        ),
+
+                        _DetailField(
+                          label: 'Description',
+                          value: hotel.description,
+                        ),
+
+                        if (user?.role == UserRole.hotelOwner ||
+                            user?.role == UserRole.admin)
+                          _DetailField(
+                            label: 'Status',
+                            value: hotel.status.name,
+                          ),
+
+                        // Map button: the raw URL is never displayed.
+                        OutlinedButton.icon(
+                          onPressed: hasValidMap
+                              ? () => _openMap(mapUrl)
+                              : null,
+                          icon: const Icon(Icons.map_outlined),
+                          label: const Text('Open map'),
+                        ),
+                        if (!hasValidMap) ...[
+                          SizedBox(height: 8.h),
+                          Text(
+                            mapUrl.isEmpty
+                                ? 'Location not provided.'
+                                : 'The saved map location is invalid.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
+                        SizedBox(height: 8.h),
+
+                        // Rooms are accessible even without a map URL.
                         FilledButton.tonalIcon(
                           onPressed: () async {
                             final role = user?.role;
@@ -313,10 +411,15 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                                 : role == UserRole.hotelOwner
                                 ? 'owner'
                                 : 'traveler';
+
                             await context.push(
-                              '/$prefix/hotels/${Uri.encodeComponent(hotel.id)}/rooms',
+                              '/$prefix/hotels/'
+                              '${Uri.encodeComponent(hotel.id)}/rooms',
                             );
-                            if (context.mounted) _reload();
+
+                            if (!mounted) return;
+
+                            _reload();
                           },
                           icon: const Icon(Icons.bed_outlined),
                           label: Text(
@@ -325,114 +428,17 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                                     user?.role == UserRole.hotelOwner
                                 ? 'Manage rooms and prices'
                                 : 'View rooms and prices',
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Photos',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 12),
-                        if (hotel.images.isEmpty)
-                          const Text('No photos saved for this hotel.')
-                        else
-                          ...hotel.images.map(
-                            (url) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  url,
-                                  height: 220,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder:
-                                      (context, child, loadingProgress) {
-                                        if (loadingProgress == null) {
-                                          return child;
-                                        }
+                        SizedBox(height: 16.h),
 
-                                        return const SizedBox(
-                                          height: 220,
-                                          child: Center(
-                                            child: CircularProgressIndicator(),
-                                          ),
-                                        );
-                                      },
-                                  errorBuilder: (context, error, stackTrace) {
-                                    if (kDebugMode) {
-                                      debugPrint('Hotel photo URL: $url');
-                                      debugPrint('Hotel photo error: $error');
-                                    }
-
-                                    return const SizedBox(
-                                      height: 220,
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.broken_image_outlined,
-                                              size: 40,
-                                            ),
-                                            SizedBox(height: 8),
-                                            Text('Could not load this photo.'),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 12),
-                        _DetailField(
-                          label: 'Description',
-                          value: hotel.description,
-                        ),
-                        _DetailField(label: 'Wilaya', value: hotel.wilaya),
-                        _DetailField(label: 'Address', value: hotel.address),
-                        _DetailField(
-                          label: 'Phone number',
-                          value: hotel.phoneNumber,
-                        ),
-                        if (mapUrl != null && mapUrl.trim().isNotEmpty) ...[
-                          _DetailField(label: 'Map link', value: mapUrl),
-                          if (HotelValidation.validMap(mapUrl))
-                            OutlinedButton.icon(
-                              onPressed: () async {
-                                try {
-                                  final opened = await launchUrl(
-                                    Uri.parse(mapUrl),
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                  if (!opened) {
-                                    throw StateError(
-                                      'No map application available',
-                                    );
-                                  }
-                                } catch (_) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Could not open Maps. You can copy the link above.',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              icon: const Icon(Icons.map_outlined),
-                              label: const Text('Open Google Maps'),
-                            ),
-                        ],
+                        // Rejection information.
                         if (hotel.status.name == 'rejected') ...[
                           Card(
                             color: Theme.of(context).colorScheme.errorContainer,
                             child: Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(16.r),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -442,7 +448,7 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                                       context,
                                     ).textTheme.titleMedium,
                                   ),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: 8.h),
                                   Text(
                                     rejectionReason == null ||
                                             rejectionReason.trim().isEmpty
@@ -453,14 +459,17 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16.h),
                         ],
+
+                        // Owner: edit draft or rejected hotel.
                         if (canEdit) ...[
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8.h),
                           OutlinedButton.icon(
                             onPressed: () async {
                               final updated = await context.push<bool>(
-                                '/owner/hotels/${Uri.encodeComponent(hotel.id)}/edit',
+                                '/owner/hotels/'
+                                '${Uri.encodeComponent(hotel.id)}/edit',
                                 extra: hotel,
                               );
 
@@ -481,13 +490,15 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                           ),
                         ],
 
-                        // Only the owner can submit their own draft.
+                        // Owner: submit draft.
                         if (canSubmit) ...[
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8.h),
                           FilledButton.icon(
                             onPressed: () {
                               if (_actionRequested) return;
+
                               setState(() => _actionRequested = true);
+
                               context.read<HotelBloc>().add(
                                 SubmitHotelForReviewEvent(id: hotel.id),
                               );
@@ -495,15 +506,18 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                             icon: const Icon(Icons.send_outlined),
                             label: const Text('Submit for review'),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8.h),
                           const Text(
-                            'Add at least one room type, then submit. An admin will review your hotel before '
+                            'Add at least one room type, then submit. '
+                            'An admin will review your hotel before '
                             'it appears to travelers.',
                             textAlign: TextAlign.center,
                           ),
                         ],
+
+                        // Owner: delete draft.
                         if (canDelete) ...[
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16.h),
                           TextButton.icon(
                             onPressed: _deleteDraft,
                             style: TextButton.styleFrom(
@@ -516,26 +530,26 @@ class _HotelDetailsViewState extends State<_HotelDetailsView> {
                           ),
                         ],
 
-                        // Admin review controls for pending hotels.
+                        // Admin: review pending hotel.
                         if (canReview) ...[
                           const Divider(),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12.h),
                           Text(
                             'Review this hotel',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8.h),
                           const Text(
                             'Approve the listing or explain what the '
                             'owner needs to correct.',
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16.h),
                           FilledButton.icon(
                             onPressed: _approveHotel,
                             icon: const Icon(Icons.check_circle_outline),
                             label: const Text('Approve hotel'),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8.h),
                           OutlinedButton.icon(
                             onPressed: _rejectHotel,
                             icon: const Icon(Icons.cancel_outlined),
@@ -566,14 +580,100 @@ class _DetailField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: EdgeInsets.only(bottom: 20.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
+          SizedBox(height: 4.h),
           SelectableText(value.trim().isEmpty ? 'Not provided' : value),
         ],
+      ),
+    );
+  }
+}
+
+class _HotelPhotoGallery extends StatelessWidget {
+  final List<String> images;
+
+  const _HotelPhotoGallery({required this.images});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16.r),
+      child: SizedBox(
+        height: 240.h,
+        child: images.isEmpty
+            ? _placeholder(context, 'No photos available.')
+            : PageView.builder(
+                itemCount: images.length,
+                itemBuilder: (context, index) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        images[index],
+                        fit: BoxFit.cover,
+                        semanticLabel: 'Hotel photo ${index + 1}',
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+
+                          return const ColoredBox(
+                            color: AppColors.infoSurface,
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        },
+                        errorBuilder: (_, _, _) =>
+                            _placeholder(context, 'Could not load this photo.'),
+                      ),
+                      if (images.length > 1)
+                        Positioned(
+                          right: 12.w,
+                          bottom: 12.h,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10.w,
+                              vertical: 6.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                            child: Text(
+                              '${index + 1} / ${images.length}',
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(color: AppColors.textPrimary),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  Widget _placeholder(BuildContext context, String message) {
+    return ColoredBox(
+      color: AppColors.infoSurface,
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.r),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.hotel_outlined, size: 40.r, color: AppColors.primary),
+              SizedBox(height: 8.h),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

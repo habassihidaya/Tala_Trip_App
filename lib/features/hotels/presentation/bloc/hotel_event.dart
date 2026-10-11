@@ -68,3 +68,16 @@ class RejectHotelEvent extends HotelEvent {
 }
 
 class GetApprovedHotelsEvent extends HotelEvent {}
+
+class FilterApprovedHotelsEvent extends HotelEvent {
+  final String? wilaya;
+
+  // null means all wilayas.
+  FilterApprovedHotelsEvent({this.wilaya});
+}
+
+class SearchHotelsEvent extends HotelEvent {
+  final String query;
+
+  SearchHotelsEvent({required this.query});
+}

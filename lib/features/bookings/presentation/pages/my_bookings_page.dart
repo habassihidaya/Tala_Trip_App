@@ -4,7 +4,6 @@ import 'package:get_it/get_it.dart';
 
 import '../../domain/entities/booking_entity.dart';
 import '../../domain/entities/booking_status.dart';
-
 import '../bloc/booking_list_bloc.dart';
 import '../bloc/booking_list_event.dart';
 import '../bloc/booking_list_state.dart';
@@ -61,12 +60,16 @@ class _MyBookingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<BookingListBloc, BookingListState>(
+      listenWhen: (previous, current) {
+        return current.message != null && current.message != previous.message;
+      },
       listener: (context, state) {
-        if (state.message != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.message!)));
-        }
+        final message = state.message;
+        if (message == null) return;
+
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(message)));
       },
       builder: (context, state) {
         final showInitialLoading =
@@ -102,9 +105,7 @@ class _MyBookingsView extends StatelessWidget {
                   onRefresh: () async {
                     final bloc = context.read<BookingListBloc>();
 
-                    if (bloc.state.isBusy) {
-                      return;
-                    }
+                    if (bloc.state.isBusy) return;
 
                     final refreshFinished = bloc.stream
                         .where(
@@ -173,7 +174,7 @@ class _ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
