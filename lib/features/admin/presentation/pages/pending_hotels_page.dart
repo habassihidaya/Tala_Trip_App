@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tala_trip_app/core/di/injection_container.dart';
@@ -27,88 +28,109 @@ class _PendingHotelsView extends StatelessWidget {
     context.read<HotelBloc>().add(GetPendingHotelsEvent());
   }
 
+  Future<void> _refreshHotels(BuildContext context) async {
+    final bloc = context.read<HotelBloc>();
+
+    if (bloc.isClosed || bloc.state is HotelLoadingState) return;
+
+    final refreshFinished = bloc.stream
+        .skipWhile((state) => state is! HotelLoadingState)
+        .where(
+          (state) =>
+              state is HotelsLoadedState ||
+              state is HotelsEmptyState ||
+              state is HotelErrorState,
+        )
+        .take(1)
+        .drain<void>();
+
+    bloc.add(GetPendingHotelsEvent());
+
+    await refreshFinished;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pending hotels'),
-        actions: [
-          BlocBuilder<HotelBloc, HotelState>(
-            builder: (context, state) {
-              return IconButton(
-                tooltip: 'Refresh',
-                onPressed: state is HotelLoadingState
-                    ? null
-                    : () => _reload(context),
-                icon: const Icon(Icons.refresh),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Pending hotels')),
       body: BlocBuilder<HotelBloc, HotelState>(
         builder: (context, state) {
-          if (state is HotelInitialState || state is HotelLoadingState) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is HotelErrorState) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(state.message, textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => _reload(context),
-                      child: const Text('Retry'),
+          return RefreshIndicator(
+            color: Theme.of(context).colorScheme.primary,
+            onRefresh: () => _refreshHotels(context),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                if (state is HotelInitialState || state is HotelLoadingState)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (state is HotelErrorState)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.r),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(state.message, textAlign: TextAlign.center),
+                            SizedBox(height: 16.h),
+                            ElevatedButton(
+                              onPressed: () => _refreshHotels(context),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            );
-          }
+                  )
+                else if (state is HotelsEmptyState)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.r),
+                        child: const Text(
+                          'No hotels are waiting for review.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  )
+                else if (state is HotelsLoadedState)
+                  SliverPadding(
+                    padding: EdgeInsets.all(16.r),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final hotel = state.hotels[index];
 
-          if (state is HotelsEmptyState) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'No hotels are waiting for review.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
+                        return HotelCard(
+                          key: ValueKey(hotel.id),
+                          name: hotel.name,
+                          imageUrl: hotel.images.isEmpty
+                              ? null
+                              : hotel.images.first,
+                          wilaya: hotel.wilaya,
+                          status: hotel.status.name,
+                          onTap: () async {
+                            await context.push(
+                              '/admin/hotels/'
+                              '${Uri.encodeComponent(hotel.id)}',
+                            );
 
-          if (state is HotelsLoadedState) {
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.hotels.length,
-              itemBuilder: (context, index) {
-                final hotel = state.hotels[index];
+                            if (!context.mounted) return;
 
-                return HotelCard(
-                  name: hotel.name,
-                  wilaya: hotel.wilaya,
-                  status: hotel.status.name,
-                  onTap: () async {
-                    await context.push(
-                      '/admin/hotels/${Uri.encodeComponent(hotel.id)}',
-                    );
-
-                    if (!context.mounted) return;
-
-                    _reload(context);
-                  },
-                );
-              },
-            );
-          }
-
-          return const SizedBox.shrink();
+                            _reload(context);
+                          },
+                        );
+                      }, childCount: state.hotels.length),
+                    ),
+                  ),
+              ],
+            ),
+          );
         },
       ),
     );

@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:tala_trip_app/core/errors/failures.dart';
 import 'package:tala_trip_app/features/hotels/domain/entities/hotel_status.dart';
+import 'package:tala_trip_app/features/hotels/domain/usecases/upload_hotel_photo.dart';
+import 'package:tala_trip_app/features/hotels/domain/repositories/hotel_photo_repository.dart';
 import 'package:tala_trip_app/features/rooms/domain/entities/room_catalog.dart';
 import 'package:tala_trip_app/features/rooms/domain/entities/room_entity.dart';
 import 'package:tala_trip_app/features/rooms/domain/repositories/room_repository.dart';
@@ -43,6 +45,13 @@ class _Repository implements RoomRepository {
   }
 }
 
+class _PhotoRepository implements HotelPhotoRepository {
+  @override
+  Future<Either<Failure, String>> uploadPhoto(String filePath) async {
+    return const Right('https://res.cloudinary.com/test/image/upload/room.jpg');
+  }
+}
+
 void main() {
   const room = RoomEntity(
     type: RoomType.single,
@@ -59,6 +68,7 @@ void main() {
         GetRooms(repository),
         SaveRoom(repository),
         DeleteRoom(repository),
+        UploadHotelPhoto(_PhotoRepository()),
       );
       final loaded = bloc.stream.firstWhere((state) => state.catalog != null);
       bloc.add(LoadRooms());

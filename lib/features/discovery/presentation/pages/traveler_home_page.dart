@@ -72,6 +72,29 @@ class _ApprovedHotelsState extends State<_ApprovedHotels> {
     context.read<HotelBloc>().add(GetApprovedHotelsEvent());
   }
 
+  Future<void> _refreshHotels() async {
+    final bloc = context.read<HotelBloc>();
+
+    if (bloc.isClosed || bloc.state is HotelLoadingState) return;
+
+    // Subscribe before requesting the reload.
+    // Ignore filter results emitted before loading starts.
+    final refreshFinished = bloc.stream
+        .skipWhile((state) => state is! HotelLoadingState)
+        .where(
+          (state) =>
+              state is HotelsLoadedState ||
+              state is HotelsEmptyState ||
+              state is HotelErrorState,
+        )
+        .take(1)
+        .drain<void>();
+
+    bloc.add(GetApprovedHotelsEvent());
+
+    await refreshFinished;
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -100,112 +123,106 @@ class _ApprovedHotelsState extends State<_ApprovedHotels> {
                   ? 'Recommended stays'
                   : 'Hotels in $_selectedWilayaLabel');
 
-        return CustomScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          slivers: [
-            SliverToBoxAdapter(
-              child: _HomeHeader(
-                searchController: _searchController,
-                onSearchChanged: _searchHotels,
+        return RefreshIndicator(
+          color: Theme.of(context).colorScheme.primary,
+          displacement: 64.h,
+          onRefresh: _refreshHotels,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: [
+              SliverToBoxAdapter(
+                child: _HomeHeader(
+                  searchController: _searchController,
+                  onSearchChanged: _searchHotels,
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: _WilayaSection(
-                selectedWilaya: _selectedWilaya,
-                enabled: canFilter,
-                onSelected: _selectWilaya,
+              SliverToBoxAdapter(
+                child: _WilayaSection(
+                  selectedWilaya: _selectedWilaya,
+                  enabled: canFilter,
+                  onSelected: _selectWilaya,
+                ),
               ),
-            ),
 
-            // Results heading and refresh button.
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(20.w, 24.h, 12.w, 12.h),
-              sliver: SliverToBoxAdapter(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Refresh hotels',
-                      onPressed: loading ? null : _reload,
-                      color: AppColors.primary,
-                      icon: const Icon(Icons.refresh_rounded),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Loading.
-            if (loading)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48.h),
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-              )
-            // Error.
-            else if (state is HotelErrorState)
-              SliverToBoxAdapter(
-                child: _HomeMessage(
-                  icon: Icons.wifi_off_rounded,
-                  message: state.message,
-                  label: 'Try again',
-                  onPressed: _reload,
-                ),
-              )
-            // Empty list or no matching results.
-            else if (state is HotelsEmptyState ||
-                (state is HotelsLoadedState && hotels.isEmpty))
-              SliverToBoxAdapter(
-                child: _HomeMessage(
-                  icon: Icons.travel_explore_rounded,
-                  message: _hasSearch
-                      ? (_selectedWilaya == null
-                            ? 'No hotels match your search.'
-                            : 'No hotels match your search in '
-                                  '$_selectedWilayaLabel.')
-                      : (_selectedWilaya == null
-                            ? 'No approved hotels are available yet.'
-                            : 'No approved hotels in '
-                                  '$_selectedWilayaLabel yet.'),
-                  label: _hasSearch
-                      ? 'Clear search'
-                      : (_selectedWilaya == null
-                            ? 'Refresh'
-                            : 'Show all hotels'),
-                  onPressed: _hasSearch
-                      ? _clearSearch
-                      : (_selectedWilaya == null
-                            ? _reload
-                            : () => _selectWilaya(null)),
-                ),
-              )
-            // Hotel results.
-            else if (state is HotelsLoadedState)
+              // Results heading.
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 28.h),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12.w,
-                    mainAxisSpacing: 16.h,
-                    // Preserves the current card layout for Step 2.
-                    mainAxisExtent: 180 + 160.sp,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _hotelCard(hotels[index]),
-                    childCount: hotels.length,
+                padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 12.h),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ),
-          ],
+
+              // Loading.
+              if (loading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48.h),
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              // Error: keep the retry button.
+              else if (state is HotelErrorState)
+                SliverToBoxAdapter(
+                  child: _HomeMessage(
+                    icon: Icons.wifi_off_rounded,
+                    message: state.message,
+                    label: 'Try again',
+                    onPressed: _refreshHotels,
+                  ),
+                )
+              // Empty list or no matching results.
+              else if (state is HotelsEmptyState ||
+                  (state is HotelsLoadedState && hotels.isEmpty))
+                SliverToBoxAdapter(
+                  child: _HomeMessage(
+                    icon: Icons.travel_explore_rounded,
+                    message: _hasSearch
+                        ? (_selectedWilaya == null
+                              ? 'No hotels match your search.'
+                              : 'No hotels match your search in '
+                                    '$_selectedWilayaLabel.')
+                        : (_selectedWilaya == null
+                              ? 'No approved hotels are available yet.'
+                              : 'No approved hotels in '
+                                    '$_selectedWilayaLabel yet.'),
+                    label: _hasSearch
+                        ? 'Clear search'
+                        : (_selectedWilaya != null ? 'Show all hotels' : null),
+                    onPressed: _hasSearch
+                        ? _clearSearch
+                        : (_selectedWilaya != null
+                              ? () => _selectWilaya(null)
+                              : null),
+                    hint: !_hasSearch && _selectedWilaya == null
+                        ? 'Pull down to refresh.'
+                        : null,
+                  ),
+                )
+              // Hotel results.
+              else if (state is HotelsLoadedState)
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 28.h),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12.w,
+                      mainAxisSpacing: 16.h,
+                      mainAxisExtent: 180 + 160.sp,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _hotelCard(hotels[index]),
+                      childCount: hotels.length,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -476,14 +493,16 @@ class _WilayaSection extends StatelessWidget {
 class _HomeMessage extends StatelessWidget {
   final IconData icon;
   final String message;
-  final String label;
-  final VoidCallback onPressed;
+  final String? label;
+  final VoidCallback? onPressed;
+  final String? hint;
 
   const _HomeMessage({
     required this.icon,
     required this.message,
-    required this.label,
-    required this.onPressed,
+    this.label,
+    this.onPressed,
+    this.hint,
   });
 
   @override
@@ -495,8 +514,20 @@ class _HomeMessage extends StatelessWidget {
           Icon(icon, size: 36.r, color: AppColors.primary),
           SizedBox(height: 12.h),
           Text(message, textAlign: TextAlign.center),
-          SizedBox(height: 12.h),
-          OutlinedButton(onPressed: onPressed, child: Text(label)),
+          if (label != null && onPressed != null) ...[
+            SizedBox(height: 12.h),
+            OutlinedButton(onPressed: onPressed, child: Text(label!)),
+          ],
+          if (hint != null) ...[
+            SizedBox(height: 12.h),
+            Text(
+              hint!,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
         ],
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import 'package:tala_trip_app/features/auth/presentation/blocs/auth_bloc.dart';
 import 'package:tala_trip_app/features/auth/presentation/blocs/auth_state.dart';
 import 'package:tala_trip_app/features/hotels/domain/entities/hotel_status.dart';
 import 'package:tala_trip_app/features/rooms/presentation/widgets/room_card.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../domain/entities/room_entity.dart';
 import '../bloc/room_bloc.dart';
 import '../bloc/room_event.dart';
@@ -25,12 +28,31 @@ class RoomsPage extends StatelessWidget {
 class _RoomsView extends StatelessWidget {
   const _RoomsView();
 
+  Future<void> _refreshRooms(BuildContext context) async {
+    final bloc = context.read<RoomBloc>();
+
+    if (bloc.isClosed || bloc.state.loading || bloc.state.saving) {
+      return;
+    }
+
+    final refreshFinished = bloc.stream
+        .skipWhile((state) => !state.loading)
+        .where((state) => !state.loading && !state.saving)
+        .take(1)
+        .drain<void>();
+
+    bloc.add(LoadRooms());
+
+    await refreshFinished;
+  }
+
   Future<void> _edit(
     BuildContext context,
     RoomType type,
     RoomEntity? room,
   ) async {
     final bloc = context.read<RoomBloc>();
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -61,6 +83,7 @@ class _RoomsView extends StatelessWidget {
         ],
       ),
     );
+
     if (confirmed == true && context.mounted) {
       context.read<RoomBloc>().add(DeleteRoomRequested(room));
     }
@@ -69,6 +92,9 @@ class _RoomsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthBloc>().state;
+    final setupMode =
+        GoRouterState.of(context).uri.queryParameters['setup'] == 'true';
+
     return BlocConsumer<RoomBloc, RoomState>(
       listener: (context, state) {
         if (state.actionSucceeded ||
@@ -84,116 +110,172 @@ class _RoomsView extends StatelessWidget {
       },
       builder: (context, state) {
         final catalog = state.catalog;
+
         final ownsHotel =
             catalog != null &&
             auth is AuthAuthenticated &&
             auth.user.role == UserRole.hotelOwner &&
             auth.user.id == catalog.ownerId;
+
         final editable =
             catalog != null &&
             ownsHotel &&
             catalog.hotelStatus != HotelStatus.pending;
+
         final isTraveler =
             auth is AuthAuthenticated && auth.user.role == UserRole.traveler;
 
         final isAdmin =
             auth is AuthAuthenticated && auth.user.role == UserRole.admin;
+
         return PopScope(
           canPop: !state.saving,
           child: Scaffold(
             appBar: AppBar(
               title: const Text('Rooms and prices'),
               automaticallyImplyLeading: !state.saving,
-              actions: [
-                IconButton(
-                  tooltip: 'Refresh',
-                  icon: const Icon(Icons.refresh),
-                  onPressed: state.loading || state.saving
-                      ? null
-                      : () => context.read<RoomBloc>().add(LoadRooms()),
-                ),
-              ],
             ),
-            body: state.loading
-                ? const Center(child: CircularProgressIndicator())
-                : catalog == null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(state.error ?? 'Rooms could not be loaded.'),
-                          TextButton(
-                            onPressed: () =>
-                                context.read<RoomBloc>().add(LoadRooms()),
-                            child: const Text('Retry'),
+            bottomNavigationBar: setupMode && ownsHotel
+                ? SafeArea(
+                    minimum: EdgeInsets.all(16.r),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Each room type is saved when you tap Save. '
+                          'You can finish your draft later.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        SizedBox(height: 12.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: state.loading || state.saving
+                                ? null
+                                : () => context.pop(),
+                            child: const Text('Done'),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   )
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      Text(
-                        catalog.hotelName,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Prices are in DZD, per room per night. Pay on arrival.',
-                      ),
-                      if (ownsHotel) ...[
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Room count is your total inventory, not availability for particular dates.',
-                        ),
-                        if (!editable)
-                          const Text(
-                            'Room changes are locked while the hotel is under review.',
+                : null,
+            body: RefreshIndicator(
+              color: Theme.of(context).colorScheme.primary,
+              onRefresh: () => _refreshRooms(context),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  if (state.loading)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (catalog == null)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.r),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                state.error ?? 'Rooms could not be loaded.',
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 12.h),
+                              TextButton(
+                                onPressed: () => _refreshRooms(context),
+                                child: const Text('Retry'),
+                              ),
+                            ],
                           ),
-                      ],
-                      if (state.saving) const LinearProgressIndicator(),
-                      if (catalog.rooms.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Text('No room types have been added yet.'),
                         ),
-                      for (final room in catalog.rooms)
-                        RoomCard(
-                          room: room,
-                          showInventory: ownsHotel || isAdmin,
-                          canEdit: editable,
-                          busy: state.saving,
-                          onEdit: () => _edit(context, room.type, room),
-                          onDelete: () => _delete(context, room),
-                          onBook:
-                              isTraveler &&
-                                  catalog.hotelStatus == HotelStatus.approved
-                              ? () {
-                                  context.push(
-                                    '/traveler/hotels/'
-                                    '${Uri.encodeComponent(catalog.hotelId)}'
-                                    '/book/${room.type.name}',
-                                  );
-                                }
-                              : null,
-                        ),
-                      if (editable) ...[
-                        const SizedBox(height: 16),
-                        for (final type in RoomType.values)
-                          if (!catalog.rooms.any((room) => room.type == type))
-                            OutlinedButton.icon(
-                              onPressed: state.saving
-                                  ? null
-                                  : () => _edit(context, type, null),
-                              icon: const Icon(Icons.add),
-                              label: Text('Add ${type.label} rooms'),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: EdgeInsets.all(16.r),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          Text(
+                            catalog.hotelName,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          SizedBox(height: 12.h),
+                          const Text(
+                            'Prices are in DZD, per room per night. '
+                            'Pay on arrival.',
+                          ),
+                          if (ownsHotel) ...[
+                            SizedBox(height: 8.h),
+                            const Text(
+                              'Room count is your total inventory, '
+                              'not availability for particular dates.',
                             ),
-                      ],
-                    ],
-                  ),
+                            if (!editable)
+                              const Text(
+                                'Room changes are locked while '
+                                'the hotel is under review.',
+                              ),
+                          ],
+                          if (state.saving) const LinearProgressIndicator(),
+                          if (catalog.rooms.isEmpty)
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24.h),
+                              child: const Text(
+                                'No room types have been added yet.',
+                              ),
+                            ),
+                          for (final room in catalog.rooms)
+                            RoomCard(
+                              room: room,
+                              showInventory: ownsHotel || isAdmin,
+                              canEdit: editable,
+                              busy: state.saving,
+                              onEdit: () => _edit(context, room.type, room),
+                              onDelete: () => _delete(context, room),
+                              onBook:
+                                  isTraveler &&
+                                      catalog.hotelStatus ==
+                                          HotelStatus.approved
+                                  ? () {
+                                      context.push(
+                                        '/traveler/hotels/'
+                                        '${Uri.encodeComponent(catalog.hotelId)}'
+                                        '/book/${room.type.name}',
+                                      );
+                                    }
+                                  : null,
+                            ),
+                          if (editable) ...[
+                            SizedBox(height: 16.h),
+                            for (final type in RoomType.values)
+                              if (!catalog.rooms.any(
+                                (room) => room.type == type,
+                              ))
+                                Padding(
+                                  padding: EdgeInsets.only(bottom: 12.h),
+                                  child: OutlinedButton.icon(
+                                    onPressed: state.saving
+                                        ? null
+                                        : () => _edit(context, type, null),
+                                    icon: const Icon(Icons.add),
+                                    label: Text(
+                                      'Add ${type.label} rooms',
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                          ],
+                        ]),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -215,10 +297,19 @@ class _RoomEditorState extends State<_RoomEditor> {
   late final TextEditingController _price;
   late final TextEditingController _count;
   bool _submitted = false;
+  bool _isPickingImages = false;
+  bool _closing = false;
+  String? _photoErrorMessage;
+  final _imagePicker = ImagePicker();
+  final List<String> _existingImages = [];
+  final List<XFile> _selectedImages = [];
+
+  int get _photoCount => _existingImages.length + _selectedImages.length;
 
   @override
   void initState() {
     super.initState();
+    _existingImages.addAll(widget.original?.images ?? const []);
     _capacity = TextEditingController(
       text: '${widget.original?.capacity ?? widget.type.fixedCapacity ?? 2}',
     );
@@ -234,11 +325,105 @@ class _RoomEditorState extends State<_RoomEditor> {
     super.dispose();
   }
 
+  Future<void> _pickImages() async {
+    if (_isPickingImages ||
+        _submitted ||
+        _closing ||
+        context.read<RoomBloc>().state.saving ||
+        _photoCount >= 10) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isPickingImages = true;
+      _photoErrorMessage = null;
+    });
+
+    try {
+      final photos = await _imagePicker.pickMultiImage(
+        maxWidth: 1600,
+        imageQuality: 80,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        for (final photo in photos) {
+          if (_selectedImages.any((item) => item.path == photo.path)) {
+            continue;
+          }
+          if (_photoCount >= 10) {
+            _photoErrorMessage = 'You can add up to 10 photos per room type.';
+            break;
+          }
+          _selectedImages.add(photo);
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _photoErrorMessage = 'Could not open photos. Please try again.';
+      });
+    } finally {
+      if (mounted) setState(() => _isPickingImages = false);
+    }
+  }
+
+  Widget _photoError(
+    BuildContext context,
+    Object error,
+    StackTrace? stackTrace,
+  ) {
+    final colors = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: colors.surfaceContainerHighest,
+      child: Center(
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: colors.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _photoPreview({
+    required Widget image,
+    required VoidCallback? onRemove,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 100.r,
+      height: 100.r,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(borderRadius: BorderRadius.circular(12.r), child: image),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              tooltip: 'Remove photo',
+              onPressed: onRemove,
+              style: IconButton.styleFrom(
+                backgroundColor: colors.surface,
+                foregroundColor: colors.onSurface,
+              ),
+              icon: const Icon(Icons.close),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => BlocConsumer<RoomBloc, RoomState>(
     listener: (context, state) {
-      if (state.actionSucceeded) {
-        setState(() => _submitted = false);
+      if (state.actionSucceeded && _submitted) {
+        setState(() {
+          _submitted = false;
+          _closing = true;
+        });
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (context.mounted) Navigator.of(context).pop();
         });
@@ -246,9 +431,9 @@ class _RoomEditorState extends State<_RoomEditor> {
       if (state.error != null) setState(() => _submitted = false);
     },
     builder: (context, state) {
-      final busy = _submitted || state.saving;
+      final busy = _submitted || state.saving || _isPickingImages || _closing;
       return PopScope(
-        canPop: !busy || state.actionSucceeded,
+        canPop: _closing || !busy,
         child: AlertDialog(
           title: Text(
             '${widget.original == null ? 'Add' : 'Edit'} ${widget.type.label} rooms',
@@ -258,53 +443,160 @@ class _RoomEditorState extends State<_RoomEditor> {
               key: _form,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Text(
+                    'Set the capacity, nightly price, and total number '
+                    'of rooms for this category.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  SizedBox(height: 20.h),
+
                   TextFormField(
                     controller: _capacity,
                     enabled: !busy,
                     readOnly: widget.type.fixedCapacity != null,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Guests per room',
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'Maximum guests per room',
+                      prefixIcon: const Icon(Icons.people_outline),
+                      helperText: widget.type.fixedCapacity != null
+                          ? '${widget.type.label} rooms have a fixed '
+                                'capacity of ${widget.type.fixedCapacity}.'
+                          : 'Enter between 1 and 4 guests.',
                     ),
                     validator: (value) {
                       final capacity = int.tryParse(value?.trim() ?? '');
-                      return capacity == null || capacity < 1 || capacity > 20
-                          ? 'Enter 1–20 guests.'
+
+                      return capacity == null || capacity < 1 || capacity > 4
+                          ? 'Enter 1–4 guests.'
                           : null;
                     },
                   ),
+                  SizedBox(height: 20.h),
+
                   TextFormField(
                     controller: _price,
                     enabled: !busy,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
-                      labelText: 'Price per night (DZD)',
+                      labelText: 'Price per night',
+                      hintText: 'Example: 8500',
+                      suffixText: 'DZD',
+                      prefixIcon: Icon(Icons.payments_outlined),
+                      helperText: 'Price for one room for one night.',
                     ),
                     validator: (value) =>
                         RoomEntity.parsePrice(value ?? '') == null
                         ? 'Enter 0.01–1,000,000 DZD (up to 2 decimals).'
                         : null,
                   ),
+                  SizedBox(height: 20.h),
+
                   TextFormField(
                     controller: _count,
                     enabled: !busy,
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(
-                      labelText: 'Total number of rooms',
+                      labelText: 'Number of rooms',
+                      prefixIcon: Icon(Icons.meeting_room_outlined),
+                      helperText:
+                          'Total rooms in this category, '
+                          'not availability for specific dates.',
                     ),
                     validator: (value) {
                       final count = int.tryParse(value?.trim() ?? '');
+
                       return count == null || count < 1 || count > 10000
                           ? 'Enter 1–10,000 rooms.'
                           : null;
                     },
                   ),
+
+                  SizedBox(height: 24.h),
+                  Text(
+                    'Room photos (optional)',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    '$_photoCount / 10 photos. Show this room type. '
+                    'Changes are applied when you tap Save.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  SizedBox(height: 12.h),
+                  OutlinedButton.icon(
+                    onPressed: busy || _photoCount >= 10 ? null : _pickImages,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text(
+                      _isPickingImages ? 'Opening photos…' : 'Choose photos',
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  if (_photoCount == 0) const Text('No photos selected yet.'),
+                  Wrap(
+                    spacing: 12.w,
+                    runSpacing: 12.h,
+                    children: [
+                      for (final url in _existingImages)
+                        _photoPreview(
+                          image: Image.network(
+                            url,
+                            fit: BoxFit.cover,
+                            errorBuilder: _photoError,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            },
+                          ),
+                          onRemove: busy
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _existingImages.remove(url);
+                                    _photoErrorMessage = null;
+                                  });
+                                },
+                        ),
+                      for (final photo in _selectedImages)
+                        _photoPreview(
+                          image: Image.file(
+                            File(photo.path),
+                            fit: BoxFit.cover,
+                            errorBuilder: _photoError,
+                          ),
+                          onRemove: busy
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _selectedImages.remove(photo);
+                                    _photoErrorMessage = null;
+                                  });
+                                },
+                        ),
+                    ],
+                  ),
+                  if (_photoErrorMessage != null)
+                    Padding(
+                      padding: EdgeInsets.only(top: 12.h),
+                      child: Text(
+                        _photoErrorMessage!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+
                   if (state.error != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 12),
+                      padding: EdgeInsets.only(top: 16.h),
                       child: Text(
                         state.error!,
                         style: TextStyle(
@@ -326,6 +618,7 @@ class _RoomEditorState extends State<_RoomEditor> {
                   ? null
                   : () {
                       if (!_form.currentState!.validate()) return;
+                      FocusScope.of(context).unfocus();
                       setState(() => _submitted = true);
                       context.read<RoomBloc>().add(
                         SaveRoomRequested(
@@ -336,12 +629,16 @@ class _RoomEditorState extends State<_RoomEditor> {
                               _price.text,
                             )!,
                             totalRooms: int.parse(_count.text.trim()),
+                            images: List<String>.unmodifiable(_existingImages),
                           ),
                           original: widget.original,
+                          photoPaths: _selectedImages
+                              .map((photo) => photo.path)
+                              .toList(),
                         ),
                       );
                     },
-              child: Text(busy ? 'Saving…' : 'Save'),
+              child: Text(_submitted || state.saving ? 'Saving…' : 'Save'),
             ),
           ],
         ),

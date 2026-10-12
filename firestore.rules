@@ -90,18 +90,35 @@ service cloud.firestore {
           && (count < 9 || validImage(images[8])) && (count < 10 || validImage(images[9]));
       }
       function validRoom(room, type) {
-        let capacity = room.capacity;
-        let price = room.priceInCentimes;
-        let count = room.totalRooms;
-        return room is map
-          && room.keys().hasAll(['capacity', 'priceInCentimes', 'totalRooms'])
-          && room.keys().hasOnly(['capacity', 'priceInCentimes', 'totalRooms'])
-          && capacity is int && capacity >= 1 && capacity <= 20
-          && (type != 'single' || capacity == 1)
-          && (type != 'double' || capacity == 2)
-          && price is int && price > 0 && price <= 100000000
-          && count is int && count >= 1 && count <= 10000;
-      }
+  let capacity = room.capacity;
+  let price = room.priceInCentimes;
+  let count = room.totalRooms;
+
+  return room is map
+    && room.keys().hasAll([
+      'capacity',
+      'priceInCentimes',
+      'totalRooms'
+    ])
+    && room.keys().hasOnly([
+      'capacity',
+      'priceInCentimes',
+      'totalRooms',
+      'images'
+    ])
+    && capacity is int
+    && capacity >= 1
+    && capacity <= 4
+    && (type != 'single' || capacity == 1)
+    && (type != 'double' || capacity == 2)
+    && price is int
+    && price > 0
+    && price <= 100000000
+    && count is int
+    && count >= 1
+    && count <= 10000
+    && validImages(room.get('images', []));
+}
       function validRooms(rooms) {
         return rooms is map && rooms.keys().hasOnly(['single', 'double', 'suite'])
           && (!('single' in rooms) || validRoom(rooms.single, 'single'))
@@ -117,7 +134,7 @@ service cloud.firestore {
           && data.id == hotelId && data.ownerId is string
           && data.name is string && data.name.size() <= 120 && nonblank(data.name)
           && data.description is string && data.description.size() <= 5000
-          && data.wilaya in ['', 'Alger', 'Oran', 'Béjaïa', 'Annaba', 'Tipaza']
+          && data.wilaya in ['', 'Algiers', 'Oran', 'Béjaïa', 'Annaba', 'Tipaza']
           && data.address is string && data.address.size() <= 500
           && data.phoneNumber is string && (data.phoneNumber == '' || validPhone(data.phoneNumber))
           && validImages(data.images) && validMap(data.mapUrl)

@@ -234,15 +234,36 @@ class _AddHotelPageState extends State<AddHotelPage> {
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text(state.message)));
+            return;
           }
 
-          final saved =
-              state is HotelDraftCreatedState ||
-              (state is HotelActionSuccessState &&
-                  state.action == HotelAction.updated);
+          if (state is HotelDraftCreatedState) {
+            final hotelId = state.hotel.id;
 
-          if (saved) {
-            // Allow PopScope to rebuild before navigating back.
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              if (!context.mounted) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Draft saved. You can now add rooms.'),
+                ),
+              );
+
+              await context.push<void>(
+                '/owner/hotels/${Uri.encodeComponent(hotelId)}/rooms'
+                '?setup=true',
+              );
+
+              if (!context.mounted) return;
+
+              // Return a success result so My Hotels reloads its list.
+              context.pop(true);
+            });
+            return;
+          }
+
+          if (state is HotelActionSuccessState &&
+              state.action == HotelAction.updated) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!context.mounted) return;
               context.pop(true);
@@ -319,7 +340,9 @@ class _AddHotelPageState extends State<AddHotelPage> {
                           items: _wilayas.map((wilaya) {
                             return DropdownMenuItem<String>(
                               value: wilaya,
-                              child: Text(wilaya),
+                              child: Text(
+                                wilaya == 'Alger' ? 'Algiers' : wilaya,
+                              ),
                             );
                           }).toList(),
                           onChanged: (value) {
@@ -432,7 +455,12 @@ class _AddHotelPageState extends State<AddHotelPage> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(_isEditing ? 'Save changes' : 'Save draft'),
+                      : Text(
+                          _isEditing
+                              ? 'Save changes'
+                              : 'Save draft & continue to rooms',
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ),
             ),

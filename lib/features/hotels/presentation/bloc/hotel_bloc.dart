@@ -340,7 +340,8 @@ class HotelBloc extends Bloc<HotelEvent, HotelState> {
           final matchesWilaya =
               !_isApprovedList ||
               _selectedWilaya == null ||
-              hotel.wilaya == _selectedWilaya;
+              _normalizeSearch(hotel.wilaya) ==
+                  _normalizeSearch(_selectedWilaya!);
 
           if (!matchesWilaya) return false;
 

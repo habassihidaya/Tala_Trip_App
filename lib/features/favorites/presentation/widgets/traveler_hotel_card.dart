@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tala_trip_app/core/constants/app_colors.dart';
 
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../auth/presentation/blocs/auth_state.dart';
@@ -124,9 +125,7 @@ class _FavoriteButton extends StatelessWidget {
                 )
               : Icon(
                   isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: isFavorite
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
+                  color: isFavorite ? AppColors.favorite : null,
                 ),
         );
       },

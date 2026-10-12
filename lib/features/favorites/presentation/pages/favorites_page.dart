@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../auth/presentation/blocs/auth_bloc.dart';
@@ -29,23 +30,43 @@ class _FavoritesPageState extends State<FavoritesPage> {
     }
   }
 
-  void _reload() {
-    if (!mounted || _bloc.isClosed) {
-      return;
-    }
+  bool get _canReload {
+    if (!mounted || _bloc.isClosed) return false;
 
     final authState = context.read<AuthBloc>().state;
 
     if (authState is! AuthAuthenticated || authState.isSigningOut) {
-      return;
+      return false;
     }
 
-    if (_bloc.state.hotelsStatus == FavoritesStatus.loading ||
-        _bloc.state.updatingHotelIds.isNotEmpty) {
-      return;
-    }
+    return _bloc.state.hotelsStatus != FavoritesStatus.loading &&
+        _bloc.state.updatingHotelIds.isEmpty;
+  }
+
+  void _reload() {
+    if (!_canReload) return;
 
     _bloc.add(const FavoriteHotelsRequested());
+  }
+
+  Future<void> _refreshFavorites() async {
+    if (!_canReload) return;
+
+    // Subscribe before sending the request.
+    // Wait for hotel loading, not just favorite-ID loading.
+    final refreshFinished = _bloc.stream
+        .skipWhile((state) => state.hotelsStatus != FavoritesStatus.loading)
+        .where(
+          (state) =>
+              state.hotelsStatus == FavoritesStatus.success ||
+              state.hotelsStatus == FavoritesStatus.failure,
+        )
+        .take(1)
+        .drain<void>();
+
+    _bloc.add(const FavoriteHotelsRequested());
+
+    await refreshFinished;
   }
 
   @override
@@ -56,23 +77,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
     return BlocBuilder<FavoritesBloc, FavoritesState>(
       builder: (context, state) {
-        final busy =
-            state.hotelsStatus == FavoritesStatus.loading ||
-            state.updatingHotelIds.isNotEmpty;
-
         return Scaffold(
           appBar: AppBar(
             title: const Text('Favorites'),
             automaticallyImplyLeading: false,
-            actions: [
-              IconButton(
-                tooltip: 'Refresh favorites',
-                onPressed: sessionAvailable && !busy ? _reload : null,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
           ),
-          body: SafeArea(child: _buildContent(state, sessionAvailable)),
+          body: SafeArea(
+            child: RefreshIndicator(
+              color: Theme.of(context).colorScheme.primary,
+              onRefresh: _refreshFavorites,
+              child: CustomScrollView(
+                key: const PageStorageKey<String>('favorite_hotels'),
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [_buildContent(state, sessionAvailable)],
+              ),
+            ),
+          ),
         );
       },
     );
@@ -81,17 +101,25 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Widget _buildContent(FavoritesState state, bool sessionAvailable) {
     if (state.hotelsStatus == FavoritesStatus.initial ||
         state.hotelsStatus == FavoritesStatus.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (state.hotelsStatus == FavoritesStatus.failure) {
-      return _FavoritesMessage(
-        icon: Icons.error_outline,
-        title: 'Could not load favorites',
-        message: state.hotelsError ?? 'Please try again.',
-        action: FilledButton(
-          onPressed: sessionAvailable ? _reload : null,
-          child: const Text('Retry'),
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _FavoritesMessage(
+          icon: Icons.error_outline,
+          title: 'Could not load favorites',
+          message: state.hotelsError ?? 'Please try again.',
+          action: FilledButton(
+            onPressed: sessionAvailable && state.updatingHotelIds.isEmpty
+                ? _refreshFavorites
+                : null,
+            child: const Text('Retry'),
+          ),
         ),
       );
     }
@@ -99,42 +127,46 @@ class _FavoritesPageState extends State<FavoritesPage> {
     if (state.isEmpty) {
       final hasSavedIds = state.favoriteIds.isNotEmpty;
 
-      return _FavoritesMessage(
-        icon: Icons.favorite_border,
-        title: hasSavedIds
-            ? 'Your saved hotels are currently unavailable'
-            : 'No favorite hotels yet',
-        message: hasSavedIds
-            ? 'Your selection is saved. Refresh later or discover other hotels.'
-            : 'Tap the heart on a hotel to save it here.',
-        action: FilledButton(
-          onPressed: sessionAvailable ? () => context.go('/traveler') : null,
-          child: const Text('Explore hotels'),
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _FavoritesMessage(
+          icon: Icons.favorite_border,
+          title: hasSavedIds
+              ? 'Your saved hotels are currently unavailable'
+              : 'No favorite hotels yet',
+          message: hasSavedIds
+              ? 'Your selection is saved. '
+                    'Pull down to refresh or discover other hotels.'
+              : 'Tap the heart on a hotel to save it here.',
+          action: FilledButton(
+            onPressed: sessionAvailable ? () => context.go('/traveler') : null,
+            child: const Text('Explore hotels'),
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      key: const PageStorageKey<String>('favorite_hotels'),
-      padding: const EdgeInsets.all(16),
-      itemCount: state.hotels.length,
-      itemBuilder: (context, index) {
-        final hotel = state.hotels[index];
+    return SliverPadding(
+      padding: EdgeInsets.all(16.r),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final hotel = state.hotels[index];
 
-        return TravelerHotelCard(
-          key: ValueKey(hotel.id),
-          hotel: hotel,
-          onTap: () async {
-            await context.push(
-              '/traveler/hotels/${Uri.encodeComponent(hotel.id)}',
-            );
+          return TravelerHotelCard(
+            key: ValueKey(hotel.id),
+            hotel: hotel,
+            onTap: () async {
+              await context.push(
+                '/traveler/hotels/${Uri.encodeComponent(hotel.id)}',
+              );
 
-            if (mounted) {
+              if (!mounted) return;
+
               _reload();
-            }
-          },
-        );
-      },
+            },
+          );
+        }, childCount: state.hotels.length),
+      ),
     );
   }
 }
@@ -157,21 +189,21 @@ class _FavoritesMessage extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      child: Padding(
+        padding: EdgeInsets.all(24.r),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: theme.colorScheme.primary),
-            const SizedBox(height: 16),
+            Icon(icon, size: 56.r, color: theme.colorScheme.primary),
+            SizedBox(height: 16.h),
             Text(
               title,
               style: theme.textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8.h),
             Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
             action,
           ],
         ),

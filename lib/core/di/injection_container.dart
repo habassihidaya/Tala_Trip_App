@@ -79,6 +79,8 @@ import 'package:tala_trip_app/features/favorites/domain/repositories/favorites_r
 import 'package:tala_trip_app/features/favorites/domain/usecases/favorites_usecases.dart';
 import 'package:tala_trip_app/features/favorites/presentation/bloc/favorites_bloc.dart';
 
+import 'package:tala_trip_app/features/hotel_owner/presentation/bloc/owner_dashboard_bloc.dart';
+
 final getIt = GetIt.instance;
 
 Future<void> setupDependencies() async {
@@ -303,6 +305,7 @@ Future<void> setupDependencies() async {
       getIt<GetRooms>(),
       getIt<SaveRoom>(),
       getIt<DeleteRoom>(),
+      getIt<UploadHotelPhoto>(),
     ),
   );
   // Bookings: Algeria's calendar dates and local time.
@@ -523,6 +526,12 @@ Future<void> setupDependencies() async {
       getFavoriteHotels: getIt<GetFavoriteHotels>(),
       addFavorite: getIt<AddFavorite>(),
       removeFavorite: getIt<RemoveFavorite>(),
+    ),
+  );
+  getIt.registerFactory<OwnerDashboardBloc>(
+    () => OwnerDashboardBloc(
+      getMyHotels: getIt<GetMyHotels>(),
+      getOwnerBookings: getIt<GetOwnerBookings>(),
     ),
   );
 }

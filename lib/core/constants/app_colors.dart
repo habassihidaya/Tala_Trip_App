@@ -23,6 +23,7 @@ class AppColors {
 
   // Emphasized action.
   static const accentAction = primary;
+  static const Color favorite = Color(0xFFE53935);
 
   // Supporting colors.
   static const subtleBorder = Color(0xFFE3DFDF);
@@ -39,6 +40,14 @@ class AppColors {
   // Hotel-owner colors.
   static const ownerAccent = Color(0xFF78585C);
   static const ownerSurface = Color(0xFFF7EFEC);
+  // Owner dashboard background.
+  static const ownerDashboardBackground = Color.fromARGB(255, 242, 245, 244);
+
+  // Owner dashboard statistic accents.
+  static const crystalLagoon = Color(0xFF70B9CE);
+  static const lotusPink = Color(0xFFDCA4B5);
+  static const waterLily = Color(0xFFB5ACD8);
+  static const mintBloom = Color(0xFFF0DFA0);
 
   // Success color.
   static const success = Color(0xFF26734D);

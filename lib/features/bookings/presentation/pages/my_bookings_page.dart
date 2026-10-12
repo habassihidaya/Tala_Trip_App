@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../domain/entities/booking_entity.dart';
@@ -25,6 +26,26 @@ class MyBookingsPage extends StatelessWidget {
 
 class _MyBookingsView extends StatelessWidget {
   const _MyBookingsView();
+
+  Future<void> _refreshBookings(BuildContext context) async {
+    final bloc = context.read<BookingListBloc>();
+
+    if (bloc.isClosed || bloc.state.isBusy) return;
+
+    // Subscribe before sending the event so we cannot miss completion.
+    final refreshFinished = bloc.stream
+        .where(
+          (state) =>
+              state.status == BookingListStatus.loaded ||
+              state.status == BookingListStatus.failure,
+        )
+        .take(1)
+        .drain<void>();
+
+    bloc.add(const BookingListRefreshRequested());
+
+    await refreshFinished;
+  }
 
   Future<void> _cancelBooking(
     BuildContext context,
@@ -78,64 +99,66 @@ class _MyBookingsView extends StatelessWidget {
                 state.bookings.isEmpty);
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('My bookings'),
-            actions: [
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: state.isBusy
-                    ? null
-                    : () => context.read<BookingListBloc>().add(
-                        const BookingListRefreshRequested(),
+          appBar: AppBar(title: const Text('My bookings')),
+          body: RefreshIndicator(
+            color: Theme.of(context).colorScheme.primary,
+            onRefresh: () => _refreshBookings(context),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                if (showInitialLoading)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (state.status == BookingListStatus.failure &&
+                    state.bookings.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _ErrorView(
+                      message: state.message ?? 'Bookings could not be loaded.',
+                      onRetry: () => _refreshBookings(context),
+                    ),
+                  )
+                else if (state.bookings.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.r),
+                        child: const Text(
+                          'You have no booking requests yet.',
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-          body: showInitialLoading
-              ? const Center(child: CircularProgressIndicator())
-              : state.status == BookingListStatus.failure &&
-                    state.bookings.isEmpty
-              ? _ErrorView(
-                  message: state.message ?? 'Bookings could not be loaded.',
-                )
-              : state.bookings.isEmpty
-              ? const Center(child: Text('You have no booking requests yet.'))
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    final bloc = context.read<BookingListBloc>();
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: EdgeInsets.all(16.r),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final booking = state.bookings[index];
 
-                    if (bloc.state.isBusy) return;
-
-                    final refreshFinished = bloc.stream
-                        .where(
-                          (state) =>
-                              state.status == BookingListStatus.loaded ||
-                              state.status == BookingListStatus.failure,
-                        )
-                        .take(1)
-                        .drain<void>();
-
-                    bloc.add(const BookingListRefreshRequested());
-
-                    await refreshFinished;
-                  },
-                  child: ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: state.bookings.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final booking = state.bookings[index];
-
-                      return BookingCard(
-                        booking: booking,
-                        ownerView: false,
-                        actions: _travelerActions(context, booking, state),
-                      );
-                    },
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: index < state.bookings.length - 1
+                                ? 12.h
+                                : 0,
+                          ),
+                          child: BookingCard(
+                            key: ValueKey(booking.id),
+                            booking: booking,
+                            ownerView: false,
+                            actions: _travelerActions(context, booking, state),
+                          ),
+                        );
+                      }, childCount: state.bookings.length),
+                    ),
                   ),
-                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -168,25 +191,21 @@ class _MyBookingsView extends StatelessWidget {
 
 class _ErrorView extends StatelessWidget {
   final String message;
+  final VoidCallback onRetry;
 
-  const _ErrorView({required this.message});
+  const _ErrorView({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      child: Padding(
+        padding: EdgeInsets.all(24.r),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () => context.read<BookingListBloc>().add(
-                const BookingListRefreshRequested(),
-              ),
-              child: const Text('Retry'),
-            ),
+            SizedBox(height: 12.h),
+            FilledButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),

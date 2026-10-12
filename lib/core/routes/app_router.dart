@@ -333,6 +333,10 @@ GoRouter createAppRouter({
         builder: (context, state, navigationShell) {
           return AppNavigationShell(
             navigationShell: navigationShell,
+            onCenterAction: () async {
+              await context.push<bool>('/owner/hotels/add');
+            },
+            centerActionTooltip: 'Add hotel',
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.dashboard_outlined),

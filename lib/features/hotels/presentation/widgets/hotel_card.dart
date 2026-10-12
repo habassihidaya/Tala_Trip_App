@@ -11,17 +11,15 @@ class HotelCard extends StatelessWidget {
   final String? imageUrl;
   final bool _isGrid;
 
-  // Existing owner/admin list cards keep their current interface.
   const HotelCard({
     super.key,
     required this.name,
     required this.wilaya,
     required this.status,
+    this.imageUrl,
     this.onTap,
-  }) : imageUrl = null,
-       _isGrid = false;
+  }) : _isGrid = false;
 
-  // Compact traveler card for a two-column grid.
   const HotelCard.grid({
     super.key,
     required this.name,
@@ -33,11 +31,41 @@ class HotelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final url = imageUrl?.trim();
+
     if (!_isGrid) {
       return Card(
         child: ListTile(
-          leading: const Icon(Icons.hotel),
-          title: Text(name),
+          leading: SizedBox.square(
+            dimension: 48.r,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10.r),
+              child: url == null || url.isEmpty
+                  ? const _HotelPhotoFallback()
+                  : Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      excludeFromSemantics: true,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+
+                        return ColoredBox(
+                          color: AppColors.infoSurface,
+                          child: Center(
+                            child: SizedBox.square(
+                              dimension: 18.r,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, _, _) => const _HotelPhotoFallback(),
+                    ),
+            ),
+          ),
+          title: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
           subtitle: Text('$wilaya • $status'),
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
@@ -46,7 +74,6 @@ class HotelCard extends StatelessWidget {
     }
 
     final textTheme = Theme.of(context).textTheme;
-    final url = imageUrl?.trim();
 
     return Card(
       margin: EdgeInsets.zero,
@@ -66,6 +93,7 @@ class HotelCard extends StatelessWidget {
                       excludeFromSemantics: true,
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
+
                         return ColoredBox(
                           color: AppColors.infoSurface,
                           child: Center(
