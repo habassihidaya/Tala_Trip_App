@@ -17,11 +17,9 @@ class OwnerDashboardBloc
   final GetOwnerBookings _getOwnerBookings;
 
   OwnerDashboardBloc({
-    required GetMyHotels getMyHotels,
-    required GetOwnerBookings getOwnerBookings,
-  }) : _getMyHotels = getMyHotels,
-       _getOwnerBookings = getOwnerBookings,
-       super(const OwnerDashboardInitial()) {
+    required this._getMyHotels,
+    required this._getOwnerBookings,
+  }) : super(const OwnerDashboardInitial()) {
     on<OwnerDashboardRequested>(_onRequested);
   }
 

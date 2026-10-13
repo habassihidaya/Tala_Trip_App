@@ -83,7 +83,7 @@ class _OwnerBookingsView extends StatelessWidget {
     BuildContext context,
     BookingEntity booking,
   ) async {
-    final controller = TextEditingController();
+    var rejectionReason = '';
     final formKey = GlobalKey<FormState>();
 
     final reason = await showDialog<String>(
@@ -94,7 +94,9 @@ class _OwnerBookingsView extends StatelessWidget {
           content: Form(
             key: formKey,
             child: TextFormField(
-              controller: controller,
+              onSaved: (value) {
+                rejectionReason = value?.trim() ?? '';
+              },
               maxLines: 4,
               maxLength: 1000,
               decoration: const InputDecoration(
@@ -122,9 +124,11 @@ class _OwnerBookingsView extends StatelessWidget {
             ),
             FilledButton(
               onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  Navigator.pop(dialogContext, controller.text.trim());
-                }
+                final form = formKey.currentState;
+                if (form == null || !form.validate()) return;
+
+                form.save();
+                Navigator.pop(dialogContext, rejectionReason);
               },
               child: const Text('Reject'),
             ),
@@ -132,8 +136,6 @@ class _OwnerBookingsView extends StatelessWidget {
         );
       },
     );
-
-    controller.dispose();
 
     if (reason != null && context.mounted) {
       context.read<BookingListBloc>().add(

@@ -43,12 +43,18 @@ class _ApprovedHotelsState extends State<_ApprovedHotels> {
 
   String? _selectedWilaya;
 
-  bool get _hasSearch => _searchController.text.trim().isNotEmpty;
+  bool _hasSearch = false;
 
   String get _selectedWilayaLabel => _selectedWilaya ?? '';
 
   void _searchHotels(String query) {
-    setState(() {});
+    final hasSearch = query.trim().isNotEmpty;
+
+    if (_hasSearch != hasSearch) {
+      setState(() {
+        _hasSearch = hasSearch;
+      });
+    }
 
     context.read<HotelBloc>().add(SearchHotelsEvent(query: query));
   }
@@ -103,6 +109,11 @@ class _ApprovedHotelsState extends State<_ApprovedHotels> {
 
   @override
   Widget build(BuildContext context) {
+    final header = _HomeHeader(
+      searchController: _searchController,
+      onSearchChanged: _searchHotels,
+    );
+
     return BlocBuilder<HotelBloc, HotelState>(
       builder: (context, state) {
         final loading =
@@ -131,12 +142,7 @@ class _ApprovedHotelsState extends State<_ApprovedHotels> {
             physics: const AlwaysScrollableScrollPhysics(),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
-              SliverToBoxAdapter(
-                child: _HomeHeader(
-                  searchController: _searchController,
-                  onSearchChanged: _searchHotels,
-                ),
-              ),
+              SliverToBoxAdapter(child: header),
               SliverToBoxAdapter(
                 child: _WilayaSection(
                   selectedWilaya: _selectedWilaya,
@@ -208,17 +214,30 @@ class _ApprovedHotelsState extends State<_ApprovedHotels> {
               else if (state is HotelsLoadedState)
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 28.h),
-                  sliver: SliverGrid(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12.w,
-                      mainAxisSpacing: 16.h,
-                      mainAxisExtent: 180 + 160.sp,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _hotelCard(hotels[index]),
-                      childCount: hotels.length,
-                    ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, rowIndex) {
+                      final firstIndex = rowIndex * 2;
+                      final secondIndex = firstIndex + 1;
+                      final hasSecondHotel = secondIndex < hotels.length;
+
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 16.h),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: _hotelCard(hotels[firstIndex])),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: hasSecondHotel
+                                    ? _hotelCard(hotels[secondIndex])
+                                    : const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }, childCount: (hotels.length + 1) ~/ 2),
                   ),
                 ),
             ],

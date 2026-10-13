@@ -41,7 +41,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Country _dialingRegion = Country.parse('DZ');
   IsoCode _phoneRegion = IsoCode.DZ;
 
-  int? _passwordScore;
+  final _passwordScore = ValueNotifier<int?>(null);
   bool _hidePassword = true;
   bool _hideConfirmation = true;
   bool _confirmationTouched = false;
@@ -64,6 +64,7 @@ class _SignUpPageState extends State<SignUpPage> {
     _mobileNumber.dispose();
     _password.dispose();
     _confirmPassword.dispose();
+    _passwordScore.dispose();
     super.dispose();
   }
 
@@ -76,15 +77,12 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   void _updatePasswordStrength() {
-    final score = _passwordStrengthChecker.score(
+    _passwordScore.value = _passwordStrengthChecker.score(
       _password.text,
       userInputs: _passwordUserInputs,
     );
 
-    setState(() {
-      _passwordScore = score;
-      _showServerError = false;
-    });
+    _clearServerError();
   }
 
   void _onPasswordChanged(String _) {
@@ -404,7 +402,12 @@ class _SignUpPageState extends State<SignUpPage> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   onChanged: _onPasswordChanged,
                 ),
-                _buildPasswordStrength(),
+                ValueListenableBuilder<int?>(
+                  valueListenable: _passwordScore,
+                  builder: (context, score, child) {
+                    return _buildPasswordStrength(score);
+                  },
+                ),
                 const SizedBox(height: 16),
                 TextFormField(
                   key: _confirmationFieldKey,
@@ -507,9 +510,7 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  Widget _buildPasswordStrength() {
-    final score = _passwordScore;
-
+  Widget _buildPasswordStrength(int? score) {
     if (score == null) {
       return const SizedBox.shrink();
     }

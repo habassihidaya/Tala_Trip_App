@@ -292,8 +292,8 @@ class _RecoveryCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'We do not know whether Firebase received your previous '
-              'request. Check it before sending another request.',
+              'We could not confirm whether your booking request was received. '
+              'Check its status before sending another request.',
             ),
             const SizedBox(height: 12),
             OutlinedButton(

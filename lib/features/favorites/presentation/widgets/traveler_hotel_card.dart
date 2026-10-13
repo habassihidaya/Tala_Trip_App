@@ -24,6 +24,7 @@ class TravelerHotelCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
@@ -50,14 +51,35 @@ class TravelerHotelCard extends StatelessWidget {
                     },
                   ),
           ),
-          ListTile(
+          InkWell(
             onTap: onTap,
-            title: Text(
-              hotel.name,
-              style: Theme.of(context).textTheme.titleMedium,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    hotel.name,
+                    softWrap: true,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    hotel.wilaya,
+                    softWrap: true,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
             ),
-            subtitle: Text(hotel.wilaya),
-            trailing: _FavoriteButton(hotel: hotel),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 4, bottom: 4),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _FavoriteButton(hotel: hotel),
+            ),
           ),
         ],
       ),
