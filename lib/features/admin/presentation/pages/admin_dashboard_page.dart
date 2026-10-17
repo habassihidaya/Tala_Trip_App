@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../auth/presentation/blocs/auth_bloc.dart';
-import '../../../auth/presentation/blocs/auth_event.dart';
 import '../../../auth/presentation/blocs/auth_state.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,16 +21,6 @@ class AdminDashboardPage extends StatelessWidget {
           appBar: AppBar(
             title: const Text('TALA Admin'),
             automaticallyImplyLeading: false,
-            actions: [
-              TextButton(
-                onPressed: authenticated == null || signingOut
-                    ? null
-                    : () {
-                        context.read<AuthBloc>().add(SignOutRequested());
-                      },
-                child: Text(signingOut ? 'Signing out...' : 'Sign out'),
-              ),
-            ],
           ),
           body: Padding(
             padding: const EdgeInsets.all(24),

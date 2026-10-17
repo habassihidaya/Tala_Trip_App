@@ -82,23 +82,7 @@ class _MyHotelsViewState extends State<_MyHotelsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('My hotels')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final created = await context.push<bool>('/owner/hotels/add');
 
-          if (!context.mounted) return;
-
-          if (created == true) {
-            _reload(context);
-
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Hotel draft saved.')));
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add hotel'),
-      ),
       body: Column(
         children: [
           Padding(

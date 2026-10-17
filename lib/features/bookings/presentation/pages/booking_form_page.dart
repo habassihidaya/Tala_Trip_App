@@ -145,7 +145,7 @@ class _BookingFormView extends StatelessWidget {
       },
       builder: (context, state) {
         final bloc = context.read<BookingFormBloc>();
-        final maxGuests = roomType.fixedCapacity ?? 20;
+        final maxGuests = roomType.fixedCapacity ?? 4;
 
         return Scaffold(
           appBar: AppBar(title: Text('Book ${roomType.label} room')),
